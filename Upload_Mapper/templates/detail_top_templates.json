@@ -1,0 +1,5 @@
+{
+    "기본": "<div style='text-align: center;'><h2>상품 상세 정보</h2></div>",
+    "프리미엄": "<div style='background-color: #f0f0f0; padding: 20px; border-radius: 10px;'><h2 style='color: #333;'>프리미엄 상품</h2></div>"
+}
+

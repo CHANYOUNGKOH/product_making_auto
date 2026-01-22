@@ -1,0 +1,35 @@
+백업 스크립트 실행 방법
+====================
+
+스크립트 위치:
+  파이썬자동화파일/상품가공프로그램/DB_save/backup_before_circular_change.py
+
+실행 방법 1: 올바른 폴더로 이동 후 실행 (권장)
+-----------------------------------------
+1. 명령 프롬프트(CMD) 또는 PowerShell 열기
+
+2. 다음 명령어로 폴더 이동:
+   cd "C:\Users\kohaz\Desktop\Python\파이썬자동화파일\상품가공프로그램\DB_save"
+
+3. 스크립트 실행:
+   python backup_before_circular_change.py
+
+
+실행 방법 2: 전체 경로로 실행
+----------------------------
+명령 프롬프트나 PowerShell에서:
+
+python "C:\Users\kohaz\Desktop\Python\파이썬자동화파일\상품가공프로그램\DB_save\backup_before_circular_change.py"
+
+
+실행 방법 3: Python 경로 직접 지정
+---------------------------------
+python -m pip install --upgrade pip  (필요시)
+
+python "C:\Users\kohaz\Desktop\Python\파이썬자동화파일\상품가공프로그램\DB_save\backup_before_circular_change.py"
+
+
+참고:
+- 스크립트는 자동으로 DB_save 폴더 내의 .db 파일들을 찾아 백업합니다
+- 백업 파일은 DB_save/backups/ 폴더에 저장됩니다
+- 스크립트 파일도 함께 백업됩니다

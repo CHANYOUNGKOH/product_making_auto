@@ -1,0 +1,5 @@
+프롬프트/규칙 바꾸고 싶을 때 → prompts_stage1.py만 열면 되고
+
+Batch 처리 방식(엑셀 컬럼명, 결과 컬럼명, 폴링 로직 등) → batch_stage1_core.py
+
+버튼/툴팁/사용자 플로우 → gui_stage1_batch.py

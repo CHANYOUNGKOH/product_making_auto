@@ -1,0 +1,5 @@
+{
+    "기본": "<div style='text-align: center; margin-top: 20px;'><p>문의사항이 있으시면 고객센터로 연락주세요.</p></div>",
+    "프리미엄": "<div style='background-color: #f9f9f9; padding: 15px; margin-top: 20px; border-top: 2px solid #ddd;'><p style='color: #666;'>프리미엄 고객 전용 상품입니다.</p></div>"
+}
+

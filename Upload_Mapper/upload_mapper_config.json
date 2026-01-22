@@ -1,0 +1,92 @@
+{
+    "solutions": {
+        "다팔자": {
+            "column_mapping": {
+                "상품코드": "상품코드",
+                "사용URL": "대표 이미지",
+                "ST4_최종결과": "상품명",
+                "search_keywords": "키워드",
+                "마켓판매가격": "가격"
+            },
+            "default_values": {},
+            "transformations": {},
+            "detail_top_text": "",
+            "detail_bottom_text": "",
+            "detail_top_template": "",
+            "detail_bottom_template": "",
+            "detail_top_image_url": "",
+            "detail_top_product_name_text": "[상품명 : {상품명}]",
+            "detail_top_notice_text": "[필독] 상품명 및 상세설명에 기재된 '본품' 발송됩니다.",
+            "detail_bottom_image_urls": [
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_0.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_1.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_2.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_3.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_4.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_5.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_6.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_7.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_8.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_9.jpg"
+            ],
+            "shipping_method": "standard",
+            "shipping_fee_rules": {},
+            "price_calculation": {
+                "market": "",
+                "margin_rate": 0.0,
+                "commission_rate": 0.0,
+                "discount_rate": 0.0
+            },
+            "detail_top_image_width": 350,
+            "detail_top_image_height": 350,
+            "detail_top_product_name_color": "blue",
+            "detail_top_product_name_font_size": 16,
+            "detail_top_notice_bg_color": "yellow",
+            "detail_top_notice_padding": "2px 4px"
+        },
+        "이셀러스": {
+            "column_mapping": {
+                "상품코드": "판매자 관리코드",
+                "사용URL": "목록 이미지*",
+                "ST4_최종결과": "상품명*",
+                "search_keywords": "검색어(태그)"
+            },
+            "default_values": {},
+            "transformations": {},
+            "detail_top_text": "",
+            "detail_bottom_text": "",
+            "detail_top_template": "",
+            "detail_bottom_template": "",
+            "detail_top_image_width": 500,
+            "detail_top_image_height": 500,
+            "detail_top_product_name_text": "[상품명: {상품명}]",
+            "detail_top_product_name_color": "blue",
+            "detail_top_product_name_font_size": 10,
+            "detail_top_notice_text": "[필독] 제품명 및 상세설명에 기재된 '본품'만 발송됩니다.",
+            "detail_top_notice_bg_color": "yellow",
+            "detail_top_notice_padding": "2px 5px",
+            "detail_bottom_image_urls": [
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_0.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_1.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_2.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_3.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_4.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_5.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_6.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_7.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_8.jpg",
+                "https://ai.esmplus.com/kohaz94/detailfolder/exchange_9.jpg"
+            ],
+            "shipping_method": "standard",
+            "shipping_fee_rules": {},
+            "option_price_rule": "smartstore",
+            "price_calculation": {
+                "market": "",
+                "margin_rate": 0.0,
+                "commission_rate": 0.0,
+                "discount_rate": 0.0
+            }
+        }
+    },
+    "last_updated": "2026-01-15 14:55:15"
+}

@@ -1,0 +1,5278 @@
+{
+  "version": "2.0",
+  "settings": {
+    "filter_mode": "exclude_expired",
+    "case_sensitive": false,
+    "common_exclude_keywords": [
+      "선물",
+      "연초",
+      "다이어리",
+      "모임",
+      "플래너",
+      "완구",
+      "효도",
+      "홈파티",
+      "효도선물",
+      "파티",
+      "감사",
+      "데코",
+      "풍선",
+      "하트",
+      "감사카드",
+      "포장",
+      "홍삼",
+      "커플",
+      "전통",
+      "전구",
+      "기념일",
+      "한과",
+      "캔디",
+      "꽃",
+      "메시지",
+      "사탕",
+      "과일세트",
+      "가면",
+      "장식",
+      "답례",
+      "레고",
+      "기념",
+      "안마",
+      "가랜드",
+      "한복",
+      "간식",
+      "건강",
+      "러브",
+      "아동",
+      "카네이션",
+      "인형",
+      "학습",
+      "놀이",
+      "오너먼트",
+      "유아",
+      "의상",
+      "장난감",
+      "부모님",
+      "캘린더",
+      "선물세트",
+      "용돈",
+      "연말"
+    ]
+  },
+  "types": {},
+  "seasons": [
+    {
+      "id": "winter_sports",
+      "name": "겨울스포츠(스키/보드)",
+      "type": "Activity",
+      "start_date": "11-15",
+      "end_date": "02-20",
+      "cross_year": true,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "고글",
+            "weight": 1.0
+          },
+          {
+            "keyword": "리프트권",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바인딩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방한장갑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보드복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "부츠",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스노우보드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스키",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스키복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스키장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "슬로프",
+            "weight": 1.0
+          },
+          {
+            "keyword": "헬멧",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "indoor_fitness_newyear",
+      "name": "헬스/다이어트(연초)",
+      "type": "Activity",
+      "start_date": "01-01",
+      "end_date": "02-28",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "다이어트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "단백질",
+            "weight": 1.0
+          },
+          {
+            "keyword": "덤벨",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝머신",
+            "weight": 1.0
+          },
+          {
+            "keyword": "밴드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "요가",
+            "weight": 1.0
+          },
+          {
+            "keyword": "운동",
+            "weight": 1.0
+          },
+          {
+            "keyword": "체중",
+            "weight": 1.0
+          },
+          {
+            "keyword": "필라테스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "헬스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "홈트",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "snow_play",
+      "name": "눈썰매/눈놀이",
+      "type": "Activity",
+      "start_date": "11-15",
+      "end_date": "02-28",
+      "cross_year": true,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "눈놀이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "눈사람",
+            "weight": 1.0
+          },
+          {
+            "keyword": "눈썰매",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방수장갑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방한복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방한부츠",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스노우",
+            "weight": 1.0
+          },
+          {
+            "keyword": "썰매",
+            "weight": 1.0
+          },
+          {
+            "keyword": "핫팩",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "spring_picnic",
+      "name": "봄나들이/피크닉",
+      "type": "Activity",
+      "start_date": "03-15",
+      "end_date": "05-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "그늘막",
+            "weight": 1.0
+          },
+          {
+            "keyword": "도시락",
+            "weight": 1.0
+          },
+          {
+            "keyword": "도시락통",
+            "weight": 1.0
+          },
+          {
+            "keyword": "돗자리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보냉",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보온병",
+            "weight": 1.0
+          },
+          {
+            "keyword": "봄나들이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "소풍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "야외",
+            "weight": 1.0
+          },
+          {
+            "keyword": "쿨러",
+            "weight": 1.0
+          },
+          {
+            "keyword": "피크닉",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "hiking_spring",
+      "name": "등산(봄)",
+      "type": "Activity",
+      "start_date": "03-01",
+      "end_date": "06-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "등산",
+            "weight": 1.0
+          },
+          {
+            "keyword": "등산복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "등산화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "레인커버",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바람막이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "배낭",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스틱",
+            "weight": 1.0
+          },
+          {
+            "keyword": "아웃도어",
+            "weight": 1.0
+          },
+          {
+            "keyword": "트레킹",
+            "weight": 1.0
+          },
+          {
+            "keyword": "하이킹",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "running_spring",
+      "name": "러닝(봄)",
+      "type": "Activity",
+      "start_date": "03-01",
+      "end_date": "06-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "러닝",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝벨트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "마라톤",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보틀",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스포츠",
+            "weight": 1.0
+          },
+          {
+            "keyword": "운동복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "조깅",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "water_play",
+      "name": "물놀이/수영",
+      "type": "Activity",
+      "start_date": "06-15",
+      "end_date": "08-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "구명조끼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "래쉬가드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "물놀이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방수팩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비치타월",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수영",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수영복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스노클",
+            "weight": 1.0
+          },
+          {
+            "keyword": "아쿠아슈즈",
+            "weight": 1.0
+          },
+          {
+            "keyword": "오리발",
+            "weight": 1.0
+          },
+          {
+            "keyword": "튜브",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "summer_vacation",
+      "name": "여름휴가/물놀이",
+      "type": "Activity",
+      "start_date": "07-01",
+      "end_date": "08-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "리조트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "물놀이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바캉스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비치",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선크림",
+            "weight": 1.0
+          },
+          {
+            "keyword": "썬크림",
+            "weight": 1.0
+          },
+          {
+            "keyword": "여름휴가",
+            "weight": 1.0
+          },
+          {
+            "keyword": "여행",
+            "weight": 1.0
+          },
+          {
+            "keyword": "여행용",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캐리어",
+            "weight": 1.0
+          },
+          {
+            "keyword": "쿨러",
+            "weight": 1.0
+          },
+          {
+            "keyword": "파우치",
+            "weight": 1.0
+          },
+          {
+            "keyword": "휴가",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "beach_season",
+      "name": "해변/바다",
+      "type": "Activity",
+      "start_date": "07-01",
+      "end_date": "08-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "래쉬가드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바다",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비치",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비치웨어",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비치타월",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비키니",
+            "weight": 1.0
+          },
+          {
+            "keyword": "서핑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스노클",
+            "weight": 1.0
+          },
+          {
+            "keyword": "파라솔",
+            "weight": 1.0
+          },
+          {
+            "keyword": "해변",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "camping_peak",
+      "name": "캠핑피크",
+      "type": "Activity",
+      "start_date": "04-01",
+      "end_date": "10-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "랜턴",
+            "weight": 1.0
+          },
+          {
+            "keyword": "매트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "버너",
+            "weight": 1.0
+          },
+          {
+            "keyword": "불멍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "차박",
+            "weight": 1.0
+          },
+          {
+            "keyword": "침낭",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캠핑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캠핑용품",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캠핑의자",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캠핑테이블",
+            "weight": 1.0
+          },
+          {
+            "keyword": "코펠",
+            "weight": 1.0
+          },
+          {
+            "keyword": "타프",
+            "weight": 1.0
+          },
+          {
+            "keyword": "텐트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "화로",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "hiking_autumn",
+      "name": "등산(가을)",
+      "type": "Activity",
+      "start_date": "09-01",
+      "end_date": "11-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "단풍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "등산",
+            "weight": 1.0
+          },
+          {
+            "keyword": "등산복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "등산화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바람막이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "배낭",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보온",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스틱",
+            "weight": 1.0
+          },
+          {
+            "keyword": "아웃도어",
+            "weight": 1.0
+          },
+          {
+            "keyword": "트레킹",
+            "weight": 1.0
+          },
+          {
+            "keyword": "하이킹",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "golf_season",
+      "name": "골프시즌",
+      "type": "Activity",
+      "start_date": "03-01",
+      "end_date": "11-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "골프",
+            "weight": 1.0
+          },
+          {
+            "keyword": "골프공",
+            "weight": 1.0
+          },
+          {
+            "keyword": "골프모자",
+            "weight": 1.0
+          },
+          {
+            "keyword": "골프웨어",
+            "weight": 1.0
+          },
+          {
+            "keyword": "골프장갑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "골프화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스크린골프",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캐디백",
+            "weight": 1.0
+          },
+          {
+            "keyword": "티",
+            "weight": 1.0
+          },
+          {
+            "keyword": "필드",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "fishing_season",
+      "name": "낚시시즌",
+      "type": "Activity",
+      "start_date": "04-01",
+      "end_date": "11-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "낚시",
+            "weight": 1.0
+          },
+          {
+            "keyword": "낚시가방",
+            "weight": 1.0
+          },
+          {
+            "keyword": "낚시의자",
+            "weight": 1.0
+          },
+          {
+            "keyword": "낚싯대",
+            "weight": 1.0
+          },
+          {
+            "keyword": "루어",
+            "weight": 1.0
+          },
+          {
+            "keyword": "릴",
+            "weight": 1.0
+          },
+          {
+            "keyword": "미끼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "민물낚시",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바다낚시",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "찌",
+            "weight": 1.0
+          },
+          {
+            "keyword": "쿨러",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "running_fall",
+      "name": "러닝(가을)",
+      "type": "Activity",
+      "start_date": "09-01",
+      "end_date": "11-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "가을마라톤",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝벨트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "러닝화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "마라톤",
+            "weight": 1.0
+          },
+          {
+            "keyword": "운동복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "조깅",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "cold_wave",
+      "name": "한파",
+      "type": "Climate",
+      "start_date": "11-01",
+      "end_date": "02-15",
+      "cross_year": true,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "귀마개",
+            "weight": 1.0
+          },
+          {
+            "keyword": "기모",
+            "weight": 1.0
+          },
+          {
+            "keyword": "내복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "목도리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "발열",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방풍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방한",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방한화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보온",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장갑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "털신",
+            "weight": 1.0
+          },
+          {
+            "keyword": "패딩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "한파",
+            "weight": 1.0
+          },
+          {
+            "keyword": "핫팩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "혹한",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "dry_season",
+      "name": "건조/감기철",
+      "type": "Climate",
+      "start_date": "11-01",
+      "end_date": "03-31",
+      "cross_year": true,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "가습",
+            "weight": 1.0
+          },
+          {
+            "keyword": "가습기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "감기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "건조",
+            "weight": 1.0
+          },
+          {
+            "keyword": "기관지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "로션",
+            "weight": 1.0
+          },
+          {
+            "keyword": "립밤",
+            "weight": 1.0
+          },
+          {
+            "keyword": "목감기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보습",
+            "weight": 1.0
+          },
+          {
+            "keyword": "정전기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "코감기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "크림",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "fine_dust",
+      "name": "미세먼지/황사",
+      "type": "Climate",
+      "start_date": "04-07",
+      "end_date": "05-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "KF80",
+            "weight": 1.0
+          },
+          {
+            "keyword": "KF94",
+            "weight": 1.0
+          },
+          {
+            "keyword": "공기청정",
+            "weight": 1.0
+          },
+          {
+            "keyword": "공기청정기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "눈보호",
+            "weight": 1.0
+          },
+          {
+            "keyword": "마스크",
+            "weight": 1.0
+          },
+          {
+            "keyword": "미세먼지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초미세먼지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "코세척",
+            "weight": 1.0
+          },
+          {
+            "keyword": "필터",
+            "weight": 1.0
+          },
+          {
+            "keyword": "환기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "황사",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "allergy_season",
+      "name": "알레르기/꽃가루",
+      "type": "Climate",
+      "start_date": "03-01",
+      "end_date": "05-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "공기청정",
+            "weight": 1.0
+          },
+          {
+            "keyword": "꽃가루",
+            "weight": 1.0
+          },
+          {
+            "keyword": "눈가려움",
+            "weight": 1.0
+          },
+          {
+            "keyword": "마스크",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비염",
+            "weight": 1.0
+          },
+          {
+            "keyword": "알러지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "알레르기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "재채기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "콧물",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "rainy_season",
+      "name": "장마/우기",
+      "type": "Climate",
+      "start_date": "06-01",
+      "end_date": "08-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "곰팡이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "레인부츠",
+            "weight": 1.0
+          },
+          {
+            "keyword": "레인코트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방수",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방수커버",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방수팩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비",
+            "weight": 1.0
+          },
+          {
+            "keyword": "우기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "우비",
+            "weight": 1.0
+          },
+          {
+            "keyword": "우산",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장마",
+            "weight": 1.0
+          },
+          {
+            "keyword": "제습",
+            "weight": 1.0
+          },
+          {
+            "keyword": "제습기",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "heat_wave",
+      "name": "폭염/무더위",
+      "type": "Climate",
+      "start_date": "06-15",
+      "end_date": "08-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "냉감",
+            "weight": 1.0
+          },
+          {
+            "keyword": "냉풍기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "무더위",
+            "weight": 1.0
+          },
+          {
+            "keyword": "서큘레이터",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선풍기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "아이스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "에어컨",
+            "weight": 1.0
+          },
+          {
+            "keyword": "여름",
+            "weight": 1.0
+          },
+          {
+            "keyword": "쿨링",
+            "weight": 1.0
+          },
+          {
+            "keyword": "쿨매트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "폭염",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "typhoon_season",
+      "name": "태풍/강풍",
+      "type": "Climate",
+      "start_date": "08-01",
+      "end_date": "10-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "강풍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "고정",
+            "weight": 1.0
+          },
+          {
+            "keyword": "방풍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비상",
+            "weight": 1.0
+          },
+          {
+            "keyword": "비상식량",
+            "weight": 1.0
+          },
+          {
+            "keyword": "손전등",
+            "weight": 1.0
+          },
+          {
+            "keyword": "안전",
+            "weight": 1.0
+          },
+          {
+            "keyword": "재난",
+            "weight": 1.0
+          },
+          {
+            "keyword": "창문",
+            "weight": 1.0
+          },
+          {
+            "keyword": "태풍",
+            "weight": 1.0
+          },
+          {
+            "keyword": "폭우",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "mosquito_season",
+      "name": "모기/해충",
+      "type": "Climate",
+      "start_date": "05-15",
+      "end_date": "10-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "기피제",
+            "weight": 1.0
+          },
+          {
+            "keyword": "모기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "모기장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "모기퇴치",
+            "weight": 1.0
+          },
+          {
+            "keyword": "바퀴",
+            "weight": 1.0
+          },
+          {
+            "keyword": "벌레",
+            "weight": 1.0
+          },
+          {
+            "keyword": "살충제",
+            "weight": 1.0
+          },
+          {
+            "keyword": "전기모기채",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초파리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "해충",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "new_year",
+      "name": "새해/신년",
+      "type": "Event",
+      "start_date": "01-01",
+      "end_date": "01-10",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "다이어리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "떡국",
+            "weight": 1.0
+          },
+          {
+            "keyword": "새출발",
+            "weight": 1.0
+          },
+          {
+            "keyword": "새해",
+            "weight": 1.0
+          },
+          {
+            "keyword": "새해선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "새해인사",
+            "weight": 1.0
+          },
+          {
+            "keyword": "신년",
+            "weight": 1.0
+          },
+          {
+            "keyword": "신년회",
+            "weight": 1.0
+          },
+          {
+            "keyword": "연초",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캘린더",
+            "weight": 1.0
+          },
+          {
+            "keyword": "플래너",
+            "weight": 1.0
+          },
+          {
+            "keyword": "해돋이",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "valentine",
+      "name": "발렌타인데이",
+      "type": "Event",
+      "start_date": "02-01",
+      "end_date": "02-14",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "러브",
+            "weight": 1.0
+          },
+          {
+            "keyword": "발렌타인",
+            "weight": 1.0
+          },
+          {
+            "keyword": "발렌타인데이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수제초콜릿",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초코",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초콜렛",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초콜릿",
+            "weight": 1.0
+          },
+          {
+            "keyword": "커플",
+            "weight": 1.0
+          },
+          {
+            "keyword": "포장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "하트",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "seollal",
+      "name": "설날",
+      "type": "Event",
+      "start_date": "01-20",
+      "end_date": "02-19",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "과일세트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "떡국",
+            "weight": 1.0
+          },
+          {
+            "keyword": "명절",
+            "weight": 1.0
+          },
+          {
+            "keyword": "명절음식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물세트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "설",
+            "weight": 1.0
+          },
+          {
+            "keyword": "설날",
+            "weight": 1.0
+          },
+          {
+            "keyword": "세뱃돈",
+            "weight": 1.0
+          },
+          {
+            "keyword": "전통",
+            "weight": 1.0
+          },
+          {
+            "keyword": "제사",
+            "weight": 1.0
+          },
+          {
+            "keyword": "차례",
+            "weight": 1.0
+          },
+          {
+            "keyword": "한과",
+            "weight": 1.0
+          },
+          {
+            "keyword": "한복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "홍삼",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "Independence_Day",
+      "name": "3.1절",
+      "type": "Event",
+      "start_date": "02-01",
+      "end_date": "03-03",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "white_day",
+      "name": "화이트데이",
+      "type": "Event",
+      "start_date": "02-14",
+      "end_date": "03-14",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "기념일",
+            "weight": 1.0
+          },
+          {
+            "keyword": "사탕",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초코",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초콜릿",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캔디",
+            "weight": 1.0
+          },
+          {
+            "keyword": "커플",
+            "weight": 1.0
+          },
+          {
+            "keyword": "포장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "하트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "화이트데이",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "childrens_day",
+      "name": "어린이날",
+      "type": "Event",
+      "start_date": "04-07",
+      "end_date": "05-05",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "놀이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "레고",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "아동",
+            "weight": 1.0
+          },
+          {
+            "keyword": "어린이날",
+            "weight": 1.0
+          },
+          {
+            "keyword": "완구",
+            "weight": 1.0
+          },
+          {
+            "keyword": "유아",
+            "weight": 1.0
+          },
+          {
+            "keyword": "인형",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장난감",
+            "weight": 1.0
+          },
+          {
+            "keyword": "키즈",
+            "weight": 1.0
+          },
+          {
+            "keyword": "키즈선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "학습",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "parents_day",
+      "name": "어버이날",
+      "type": "Event",
+      "start_date": "04-07",
+      "end_date": "05-08",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "가정의달",
+            "weight": 1.0
+          },
+          {
+            "keyword": "건강",
+            "weight": 1.0
+          },
+          {
+            "keyword": "꽃",
+            "weight": 1.0
+          },
+          {
+            "keyword": "부모님",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "안마",
+            "weight": 1.0
+          },
+          {
+            "keyword": "어버이날",
+            "weight": 1.0
+          },
+          {
+            "keyword": "용돈",
+            "weight": 1.0
+          },
+          {
+            "keyword": "카네이션",
+            "weight": 1.0
+          },
+          {
+            "keyword": "홍삼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "효도",
+            "weight": 1.0
+          },
+          {
+            "keyword": "효도선물",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "teachers_day",
+      "name": "스승의날",
+      "type": "Event",
+      "start_date": "04-07",
+      "end_date": "05-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "감사",
+            "weight": 1.0
+          },
+          {
+            "keyword": "감사카드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "기념",
+            "weight": 1.0
+          },
+          {
+            "keyword": "꽃",
+            "weight": 1.0
+          },
+          {
+            "keyword": "답례",
+            "weight": 1.0
+          },
+          {
+            "keyword": "메시지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선생님",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스승의날",
+            "weight": 1.0
+          },
+          {
+            "keyword": "카네이션",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "Family_month",
+      "name": "가정의달",
+      "type": "Event",
+      "start_date": "04-01",
+      "end_date": "05-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "local_elections",
+      "name": "2026지방선거",
+      "type": "Event",
+      "start_date": "05-01",
+      "end_date": "06-03",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "National_Liberation_Day",
+      "name": "광복절",
+      "type": "Event",
+      "start_date": "07-10",
+      "end_date": "08-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "chuseok",
+      "name": "추석(대략)",
+      "type": "Event",
+      "start_date": "09-01",
+      "end_date": "10-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "과일세트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "명절",
+            "weight": 1.0
+          },
+          {
+            "keyword": "명절음식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물세트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "송편",
+            "weight": 1.0
+          },
+          {
+            "keyword": "전통",
+            "weight": 1.0
+          },
+          {
+            "keyword": "제사",
+            "weight": 1.0
+          },
+          {
+            "keyword": "차례",
+            "weight": 1.0
+          },
+          {
+            "keyword": "추석",
+            "weight": 1.0
+          },
+          {
+            "keyword": "한가위",
+            "weight": 1.0
+          },
+          {
+            "keyword": "한과",
+            "weight": 1.0
+          },
+          {
+            "keyword": "홍삼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "효도선물",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "halloween",
+      "name": "할로윈",
+      "type": "Event",
+      "start_date": "10-01",
+      "end_date": "10-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "halloween",
+            "weight": 1.0
+          },
+          {
+            "keyword": "가면",
+            "weight": 1.0
+          },
+          {
+            "keyword": "데코",
+            "weight": 1.0
+          },
+          {
+            "keyword": "분장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "사탕",
+            "weight": 1.0
+          },
+          {
+            "keyword": "유령",
+            "weight": 1.0
+          },
+          {
+            "keyword": "의상",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캔디",
+            "weight": 1.0
+          },
+          {
+            "keyword": "코스튬",
+            "weight": 1.0
+          },
+          {
+            "keyword": "파티",
+            "weight": 1.0
+          },
+          {
+            "keyword": "펌킨",
+            "weight": 1.0
+          },
+          {
+            "keyword": "할로윈",
+            "weight": 1.0
+          },
+          {
+            "keyword": "호박",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "pepero_day",
+      "name": "빼빼로데이",
+      "type": "Event",
+      "start_date": "11-01",
+      "end_date": "11-11",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "11월11일",
+            "weight": 1.0
+          },
+          {
+            "keyword": "간식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "기념일",
+            "weight": 1.0
+          },
+          {
+            "keyword": "빼빼로",
+            "weight": 1.0
+          },
+          {
+            "keyword": "빼빼로데이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초코",
+            "weight": 1.0
+          },
+          {
+            "keyword": "초콜릿",
+            "weight": 1.0
+          },
+          {
+            "keyword": "포장",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "christmas",
+      "name": "크리스마스",
+      "type": "Event",
+      "start_date": "11-10",
+      "end_date": "12-25",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "christmas",
+            "weight": 1.0
+          },
+          {
+            "keyword": "루돌프",
+            "weight": 1.0
+          },
+          {
+            "keyword": "리스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "산타",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "오너먼트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "전구",
+            "weight": 1.0
+          },
+          {
+            "keyword": "캐롤",
+            "weight": 1.0
+          },
+          {
+            "keyword": "크리스마스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "크리스마스선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "트리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "파티",
+            "weight": 1.0
+          },
+          {
+            "keyword": "포장",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "year_end_party",
+      "name": "연말/송년",
+      "type": "Event",
+      "start_date": "11-15",
+      "end_date": "12-31",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "가랜드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "모임",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "송년",
+            "weight": 1.0
+          },
+          {
+            "keyword": "송년회",
+            "weight": 1.0
+          },
+          {
+            "keyword": "연말",
+            "weight": 1.0
+          },
+          {
+            "keyword": "연말파티",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "파티",
+            "weight": 1.0
+          },
+          {
+            "keyword": "풍선",
+            "weight": 1.0
+          },
+          {
+            "keyword": "홈파티",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "heater_install",
+      "name": "난방용품/보일러 점검",
+      "type": "Lifecycle",
+      "start_date": "10-01",
+      "end_date": "01-30",
+      "cross_year": true,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "난방",
+            "weight": 1.0
+          },
+          {
+            "keyword": "단열",
+            "weight": 1.0
+          },
+          {
+            "keyword": "라디에이터",
+            "weight": 1.0
+          },
+          {
+            "keyword": "문풍지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "보일러",
+            "weight": 1.0
+          },
+          {
+            "keyword": "온수",
+            "weight": 1.0
+          },
+          {
+            "keyword": "온수매트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "온열",
+            "weight": 1.0
+          },
+          {
+            "keyword": "전기장판",
+            "weight": 1.0
+          },
+          {
+            "keyword": "전기히터",
+            "weight": 1.0
+          },
+          {
+            "keyword": "점검",
+            "weight": 1.0
+          },
+          {
+            "keyword": "히터",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "graduation",
+      "name": "졸업/입학(준비)",
+      "type": "Lifecycle",
+      "start_date": "01-15",
+      "end_date": "03-10",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "교복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "기념",
+            "weight": 1.0
+          },
+          {
+            "keyword": "꽃다발",
+            "weight": 1.0
+          },
+          {
+            "keyword": "부케",
+            "weight": 1.0
+          },
+          {
+            "keyword": "선물",
+            "weight": 1.0
+          },
+          {
+            "keyword": "입학",
+            "weight": 1.0
+          },
+          {
+            "keyword": "입학식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "정장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "졸업",
+            "weight": 1.0
+          },
+          {
+            "keyword": "졸업식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "학사모",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "back_to_school",
+      "name": "신학기/새학기",
+      "type": "Lifecycle",
+      "start_date": "02-01",
+      "end_date": "03-20",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "가방",
+            "weight": 1.0
+          },
+          {
+            "keyword": "공책",
+            "weight": 1.0
+          },
+          {
+            "keyword": "교복",
+            "weight": 1.0
+          },
+          {
+            "keyword": "노트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "백팩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "새학기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "신학기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "실내화",
+            "weight": 1.0
+          },
+          {
+            "keyword": "연필",
+            "weight": 1.0
+          },
+          {
+            "keyword": "입학",
+            "weight": 1.0
+          },
+          {
+            "keyword": "지우개",
+            "weight": 1.0
+          },
+          {
+            "keyword": "책가방",
+            "weight": 1.0
+          },
+          {
+            "keyword": "필통",
+            "weight": 1.0
+          },
+          {
+            "keyword": "학용품",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "moving_season",
+      "name": "이사철",
+      "type": "Lifecycle",
+      "start_date": "02-15",
+      "end_date": "04-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "박스",
+            "weight": 1.0
+          },
+          {
+            "keyword": "뽁뽁이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수납",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수납함",
+            "weight": 1.0
+          },
+          {
+            "keyword": "완충",
+            "weight": 1.0
+          },
+          {
+            "keyword": "이사",
+            "weight": 1.0
+          },
+          {
+            "keyword": "정리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "정리함",
+            "weight": 1.0
+          },
+          {
+            "keyword": "청소",
+            "weight": 1.0
+          },
+          {
+            "keyword": "커터",
+            "weight": 1.0
+          },
+          {
+            "keyword": "테이프",
+            "weight": 1.0
+          },
+          {
+            "keyword": "포장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "행거",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "spring_cleaning",
+      "name": "봄맞이 대청소",
+      "type": "Lifecycle",
+      "start_date": "03-01",
+      "end_date": "04-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "곰팡이",
+            "weight": 1.0
+          },
+          {
+            "keyword": "대청소",
+            "weight": 1.0
+          },
+          {
+            "keyword": "먼지",
+            "weight": 1.0
+          },
+          {
+            "keyword": "물걸레",
+            "weight": 1.0
+          },
+          {
+            "keyword": "밀대",
+            "weight": 1.0
+          },
+          {
+            "keyword": "브러시",
+            "weight": 1.0
+          },
+          {
+            "keyword": "세제",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수납",
+            "weight": 1.0
+          },
+          {
+            "keyword": "정리",
+            "weight": 1.0
+          },
+          {
+            "keyword": "청소",
+            "weight": 1.0
+          },
+          {
+            "keyword": "청소기",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "aircon_install",
+      "name": "에어컨 설치/점검",
+      "type": "Lifecycle",
+      "start_date": "04-01",
+      "end_date": "06-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "냉매",
+            "weight": 1.0
+          },
+          {
+            "keyword": "배관",
+            "weight": 1.0
+          },
+          {
+            "keyword": "설치",
+            "weight": 1.0
+          },
+          {
+            "keyword": "세척",
+            "weight": 1.0
+          },
+          {
+            "keyword": "실외기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "에어컨",
+            "weight": 1.0
+          },
+          {
+            "keyword": "에어컨필터",
+            "weight": 1.0
+          },
+          {
+            "keyword": "청소",
+            "weight": 1.0
+          },
+          {
+            "keyword": "커버",
+            "weight": 1.0
+          },
+          {
+            "keyword": "필터",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "wedding_spring",
+      "name": "결혼/웨딩(봄)",
+      "type": "Lifecycle",
+      "start_date": "04-01",
+      "end_date": "06-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "결혼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "답례품",
+            "weight": 1.0
+          },
+          {
+            "keyword": "부케",
+            "weight": 1.0
+          },
+          {
+            "keyword": "신혼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "예식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "웨딩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "청첩장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "축의",
+            "weight": 1.0
+          },
+          {
+            "keyword": "허니문",
+            "weight": 1.0
+          },
+          {
+            "keyword": "혼수",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "wedding_fall",
+      "name": "결혼/웨딩(가을)",
+      "type": "Lifecycle",
+      "start_date": "09-01",
+      "end_date": "11-15",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "가을예식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "결혼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "답례품",
+            "weight": 1.0
+          },
+          {
+            "keyword": "부케",
+            "weight": 1.0
+          },
+          {
+            "keyword": "신혼",
+            "weight": 1.0
+          },
+          {
+            "keyword": "예식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "웨딩",
+            "weight": 1.0
+          },
+          {
+            "keyword": "청첩장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "축의",
+            "weight": 1.0
+          },
+          {
+            "keyword": "혼수",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "exam_season",
+      "name": "수능",
+      "type": "Lifecycle",
+      "start_date": "10-01",
+      "end_date": "11-20",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "간식",
+            "weight": 1.0
+          },
+          {
+            "keyword": "공부",
+            "weight": 1.0
+          },
+          {
+            "keyword": "독서실",
+            "weight": 1.0
+          },
+          {
+            "keyword": "문제집",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수능",
+            "weight": 1.0
+          },
+          {
+            "keyword": "수험생",
+            "weight": 1.0
+          },
+          {
+            "keyword": "스탠드",
+            "weight": 1.0
+          },
+          {
+            "keyword": "시험",
+            "weight": 1.0
+          },
+          {
+            "keyword": "영양제",
+            "weight": 1.0
+          },
+          {
+            "keyword": "응원",
+            "weight": 1.0
+          },
+          {
+            "keyword": "집중",
+            "weight": 1.0
+          },
+          {
+            "keyword": "책상",
+            "weight": 1.0
+          },
+          {
+            "keyword": "필기",
+            "weight": 1.0
+          },
+          {
+            "keyword": "합격",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    },
+    {
+      "id": "kimjang",
+      "name": "김장",
+      "type": "Lifecycle",
+      "start_date": "10-15",
+      "end_date": "11-30",
+      "cross_year": false,
+      "sourcing_start_days": 50,
+      "processing_end_days": 21,
+      "prep_days": 50,
+      "grace_days": 21,
+      "priority": 1,
+      "keywords": {
+        "include": [
+          {
+            "keyword": "고춧가루",
+            "weight": 1.0
+          },
+          {
+            "keyword": "김장",
+            "weight": 1.0
+          },
+          {
+            "keyword": "김장매트",
+            "weight": 1.0
+          },
+          {
+            "keyword": "김치",
+            "weight": 1.0
+          },
+          {
+            "keyword": "김치냉장고",
+            "weight": 1.0
+          },
+          {
+            "keyword": "김치통",
+            "weight": 1.0
+          },
+          {
+            "keyword": "무",
+            "weight": 1.0
+          },
+          {
+            "keyword": "밀폐",
+            "weight": 1.0
+          },
+          {
+            "keyword": "배추",
+            "weight": 1.0
+          },
+          {
+            "keyword": "앞치마",
+            "weight": 1.0
+          },
+          {
+            "keyword": "양념",
+            "weight": 1.0
+          },
+          {
+            "keyword": "장갑",
+            "weight": 1.0
+          },
+          {
+            "keyword": "절임",
+            "weight": 1.0
+          }
+        ],
+        "exclude": [],
+        "allowed": []
+      }
+    }
+  ],
+  "keywords": {
+    "winter_sports": {
+      "include": [
+        {
+          "keyword": "고글",
+          "weight": 1.0
+        },
+        {
+          "keyword": "리프트권",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바인딩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방한장갑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보드복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "부츠",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스노우보드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스키",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스키복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스키장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "슬로프",
+          "weight": 1.0
+        },
+        {
+          "keyword": "헬멧",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "indoor_fitness_newyear": {
+      "include": [
+        {
+          "keyword": "다이어트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "단백질",
+          "weight": 1.0
+        },
+        {
+          "keyword": "덤벨",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝머신",
+          "weight": 1.0
+        },
+        {
+          "keyword": "밴드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "요가",
+          "weight": 1.0
+        },
+        {
+          "keyword": "운동",
+          "weight": 1.0
+        },
+        {
+          "keyword": "체중",
+          "weight": 1.0
+        },
+        {
+          "keyword": "필라테스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "헬스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "홈트",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "snow_play": {
+      "include": [
+        {
+          "keyword": "눈놀이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "눈사람",
+          "weight": 1.0
+        },
+        {
+          "keyword": "눈썰매",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방수장갑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방한복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방한부츠",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스노우",
+          "weight": 1.0
+        },
+        {
+          "keyword": "썰매",
+          "weight": 1.0
+        },
+        {
+          "keyword": "핫팩",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "spring_picnic": {
+      "include": [
+        {
+          "keyword": "그늘막",
+          "weight": 1.0
+        },
+        {
+          "keyword": "도시락",
+          "weight": 1.0
+        },
+        {
+          "keyword": "도시락통",
+          "weight": 1.0
+        },
+        {
+          "keyword": "돗자리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보냉",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보온병",
+          "weight": 1.0
+        },
+        {
+          "keyword": "봄나들이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "소풍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "야외",
+          "weight": 1.0
+        },
+        {
+          "keyword": "쿨러",
+          "weight": 1.0
+        },
+        {
+          "keyword": "피크닉",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "hiking_spring": {
+      "include": [
+        {
+          "keyword": "등산",
+          "weight": 1.0
+        },
+        {
+          "keyword": "등산복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "등산화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "레인커버",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바람막이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "배낭",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스틱",
+          "weight": 1.0
+        },
+        {
+          "keyword": "아웃도어",
+          "weight": 1.0
+        },
+        {
+          "keyword": "트레킹",
+          "weight": 1.0
+        },
+        {
+          "keyword": "하이킹",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "running_spring": {
+      "include": [
+        {
+          "keyword": "러닝",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝벨트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "마라톤",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보틀",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스포츠",
+          "weight": 1.0
+        },
+        {
+          "keyword": "운동복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "조깅",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "water_play": {
+      "include": [
+        {
+          "keyword": "구명조끼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "래쉬가드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "물놀이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방수팩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비치타월",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수영",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수영복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스노클",
+          "weight": 1.0
+        },
+        {
+          "keyword": "아쿠아슈즈",
+          "weight": 1.0
+        },
+        {
+          "keyword": "오리발",
+          "weight": 1.0
+        },
+        {
+          "keyword": "튜브",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "summer_vacation": {
+      "include": [
+        {
+          "keyword": "리조트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "물놀이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바캉스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비치",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선크림",
+          "weight": 1.0
+        },
+        {
+          "keyword": "썬크림",
+          "weight": 1.0
+        },
+        {
+          "keyword": "여름휴가",
+          "weight": 1.0
+        },
+        {
+          "keyword": "여행",
+          "weight": 1.0
+        },
+        {
+          "keyword": "여행용",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캐리어",
+          "weight": 1.0
+        },
+        {
+          "keyword": "쿨러",
+          "weight": 1.0
+        },
+        {
+          "keyword": "파우치",
+          "weight": 1.0
+        },
+        {
+          "keyword": "휴가",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "beach_season": {
+      "include": [
+        {
+          "keyword": "래쉬가드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바다",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비치",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비치웨어",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비치타월",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비키니",
+          "weight": 1.0
+        },
+        {
+          "keyword": "서핑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스노클",
+          "weight": 1.0
+        },
+        {
+          "keyword": "파라솔",
+          "weight": 1.0
+        },
+        {
+          "keyword": "해변",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "camping_peak": {
+      "include": [
+        {
+          "keyword": "랜턴",
+          "weight": 1.0
+        },
+        {
+          "keyword": "매트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "버너",
+          "weight": 1.0
+        },
+        {
+          "keyword": "불멍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "차박",
+          "weight": 1.0
+        },
+        {
+          "keyword": "침낭",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캠핑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캠핑용품",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캠핑의자",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캠핑테이블",
+          "weight": 1.0
+        },
+        {
+          "keyword": "코펠",
+          "weight": 1.0
+        },
+        {
+          "keyword": "타프",
+          "weight": 1.0
+        },
+        {
+          "keyword": "텐트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "화로",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "hiking_autumn": {
+      "include": [
+        {
+          "keyword": "단풍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "등산",
+          "weight": 1.0
+        },
+        {
+          "keyword": "등산복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "등산화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바람막이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "배낭",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보온",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스틱",
+          "weight": 1.0
+        },
+        {
+          "keyword": "아웃도어",
+          "weight": 1.0
+        },
+        {
+          "keyword": "트레킹",
+          "weight": 1.0
+        },
+        {
+          "keyword": "하이킹",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "golf_season": {
+      "include": [
+        {
+          "keyword": "골프",
+          "weight": 1.0
+        },
+        {
+          "keyword": "골프공",
+          "weight": 1.0
+        },
+        {
+          "keyword": "골프모자",
+          "weight": 1.0
+        },
+        {
+          "keyword": "골프웨어",
+          "weight": 1.0
+        },
+        {
+          "keyword": "골프장갑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "골프화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스크린골프",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캐디백",
+          "weight": 1.0
+        },
+        {
+          "keyword": "티",
+          "weight": 1.0
+        },
+        {
+          "keyword": "필드",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "fishing_season": {
+      "include": [
+        {
+          "keyword": "낚시",
+          "weight": 1.0
+        },
+        {
+          "keyword": "낚시가방",
+          "weight": 1.0
+        },
+        {
+          "keyword": "낚시의자",
+          "weight": 1.0
+        },
+        {
+          "keyword": "낚싯대",
+          "weight": 1.0
+        },
+        {
+          "keyword": "루어",
+          "weight": 1.0
+        },
+        {
+          "keyword": "릴",
+          "weight": 1.0
+        },
+        {
+          "keyword": "미끼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "민물낚시",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바다낚시",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "찌",
+          "weight": 1.0
+        },
+        {
+          "keyword": "쿨러",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "running_fall": {
+      "include": [
+        {
+          "keyword": "가을마라톤",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝벨트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "러닝화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "마라톤",
+          "weight": 1.0
+        },
+        {
+          "keyword": "운동복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "조깅",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "cold_wave": {
+      "include": [
+        {
+          "keyword": "귀마개",
+          "weight": 1.0
+        },
+        {
+          "keyword": "기모",
+          "weight": 1.0
+        },
+        {
+          "keyword": "내복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "목도리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "발열",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방풍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방한",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방한화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보온",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장갑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "털신",
+          "weight": 1.0
+        },
+        {
+          "keyword": "패딩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "한파",
+          "weight": 1.0
+        },
+        {
+          "keyword": "핫팩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "혹한",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "dry_season": {
+      "include": [
+        {
+          "keyword": "가습",
+          "weight": 1.0
+        },
+        {
+          "keyword": "가습기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "감기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "건조",
+          "weight": 1.0
+        },
+        {
+          "keyword": "기관지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "로션",
+          "weight": 1.0
+        },
+        {
+          "keyword": "립밤",
+          "weight": 1.0
+        },
+        {
+          "keyword": "목감기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보습",
+          "weight": 1.0
+        },
+        {
+          "keyword": "정전기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "코감기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "크림",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "fine_dust": {
+      "include": [
+        {
+          "keyword": "KF80",
+          "weight": 1.0
+        },
+        {
+          "keyword": "KF94",
+          "weight": 1.0
+        },
+        {
+          "keyword": "공기청정",
+          "weight": 1.0
+        },
+        {
+          "keyword": "공기청정기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "눈보호",
+          "weight": 1.0
+        },
+        {
+          "keyword": "마스크",
+          "weight": 1.0
+        },
+        {
+          "keyword": "미세먼지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초미세먼지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "코세척",
+          "weight": 1.0
+        },
+        {
+          "keyword": "필터",
+          "weight": 1.0
+        },
+        {
+          "keyword": "환기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "황사",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "allergy_season": {
+      "include": [
+        {
+          "keyword": "공기청정",
+          "weight": 1.0
+        },
+        {
+          "keyword": "꽃가루",
+          "weight": 1.0
+        },
+        {
+          "keyword": "눈가려움",
+          "weight": 1.0
+        },
+        {
+          "keyword": "마스크",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비염",
+          "weight": 1.0
+        },
+        {
+          "keyword": "알러지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "알레르기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "재채기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "콧물",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "rainy_season": {
+      "include": [
+        {
+          "keyword": "곰팡이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "레인부츠",
+          "weight": 1.0
+        },
+        {
+          "keyword": "레인코트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방수",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방수커버",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방수팩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비",
+          "weight": 1.0
+        },
+        {
+          "keyword": "우기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "우비",
+          "weight": 1.0
+        },
+        {
+          "keyword": "우산",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장마",
+          "weight": 1.0
+        },
+        {
+          "keyword": "제습",
+          "weight": 1.0
+        },
+        {
+          "keyword": "제습기",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "heat_wave": {
+      "include": [
+        {
+          "keyword": "냉감",
+          "weight": 1.0
+        },
+        {
+          "keyword": "냉풍기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "무더위",
+          "weight": 1.0
+        },
+        {
+          "keyword": "서큘레이터",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선풍기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "아이스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "에어컨",
+          "weight": 1.0
+        },
+        {
+          "keyword": "여름",
+          "weight": 1.0
+        },
+        {
+          "keyword": "쿨링",
+          "weight": 1.0
+        },
+        {
+          "keyword": "쿨매트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "폭염",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "typhoon_season": {
+      "include": [
+        {
+          "keyword": "강풍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "고정",
+          "weight": 1.0
+        },
+        {
+          "keyword": "방풍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비상",
+          "weight": 1.0
+        },
+        {
+          "keyword": "비상식량",
+          "weight": 1.0
+        },
+        {
+          "keyword": "손전등",
+          "weight": 1.0
+        },
+        {
+          "keyword": "안전",
+          "weight": 1.0
+        },
+        {
+          "keyword": "재난",
+          "weight": 1.0
+        },
+        {
+          "keyword": "창문",
+          "weight": 1.0
+        },
+        {
+          "keyword": "태풍",
+          "weight": 1.0
+        },
+        {
+          "keyword": "폭우",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "mosquito_season": {
+      "include": [
+        {
+          "keyword": "기피제",
+          "weight": 1.0
+        },
+        {
+          "keyword": "모기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "모기장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "모기퇴치",
+          "weight": 1.0
+        },
+        {
+          "keyword": "바퀴",
+          "weight": 1.0
+        },
+        {
+          "keyword": "벌레",
+          "weight": 1.0
+        },
+        {
+          "keyword": "살충제",
+          "weight": 1.0
+        },
+        {
+          "keyword": "전기모기채",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초파리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "해충",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "new_year": {
+      "include": [
+        {
+          "keyword": "다이어리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "떡국",
+          "weight": 1.0
+        },
+        {
+          "keyword": "새출발",
+          "weight": 1.0
+        },
+        {
+          "keyword": "새해",
+          "weight": 1.0
+        },
+        {
+          "keyword": "새해선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "새해인사",
+          "weight": 1.0
+        },
+        {
+          "keyword": "신년",
+          "weight": 1.0
+        },
+        {
+          "keyword": "신년회",
+          "weight": 1.0
+        },
+        {
+          "keyword": "연초",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캘린더",
+          "weight": 1.0
+        },
+        {
+          "keyword": "플래너",
+          "weight": 1.0
+        },
+        {
+          "keyword": "해돋이",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "valentine": {
+      "include": [
+        {
+          "keyword": "러브",
+          "weight": 1.0
+        },
+        {
+          "keyword": "발렌타인",
+          "weight": 1.0
+        },
+        {
+          "keyword": "발렌타인데이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수제초콜릿",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초코",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초콜렛",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초콜릿",
+          "weight": 1.0
+        },
+        {
+          "keyword": "커플",
+          "weight": 1.0
+        },
+        {
+          "keyword": "포장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "하트",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "seollal": {
+      "include": [
+        {
+          "keyword": "과일세트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "떡국",
+          "weight": 1.0
+        },
+        {
+          "keyword": "명절",
+          "weight": 1.0
+        },
+        {
+          "keyword": "명절음식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물세트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "설",
+          "weight": 1.0
+        },
+        {
+          "keyword": "설날",
+          "weight": 1.0
+        },
+        {
+          "keyword": "세뱃돈",
+          "weight": 1.0
+        },
+        {
+          "keyword": "전통",
+          "weight": 1.0
+        },
+        {
+          "keyword": "제사",
+          "weight": 1.0
+        },
+        {
+          "keyword": "차례",
+          "weight": 1.0
+        },
+        {
+          "keyword": "한과",
+          "weight": 1.0
+        },
+        {
+          "keyword": "한복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "홍삼",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "white_day": {
+      "include": [
+        {
+          "keyword": "기념일",
+          "weight": 1.0
+        },
+        {
+          "keyword": "사탕",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초코",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초콜릿",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캔디",
+          "weight": 1.0
+        },
+        {
+          "keyword": "커플",
+          "weight": 1.0
+        },
+        {
+          "keyword": "포장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "하트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "화이트데이",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "childrens_day": {
+      "include": [
+        {
+          "keyword": "놀이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "레고",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "아동",
+          "weight": 1.0
+        },
+        {
+          "keyword": "어린이날",
+          "weight": 1.0
+        },
+        {
+          "keyword": "완구",
+          "weight": 1.0
+        },
+        {
+          "keyword": "유아",
+          "weight": 1.0
+        },
+        {
+          "keyword": "인형",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장난감",
+          "weight": 1.0
+        },
+        {
+          "keyword": "키즈",
+          "weight": 1.0
+        },
+        {
+          "keyword": "키즈선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "학습",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "parents_day": {
+      "include": [
+        {
+          "keyword": "가정의달",
+          "weight": 1.0
+        },
+        {
+          "keyword": "건강",
+          "weight": 1.0
+        },
+        {
+          "keyword": "꽃",
+          "weight": 1.0
+        },
+        {
+          "keyword": "부모님",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "안마",
+          "weight": 1.0
+        },
+        {
+          "keyword": "어버이날",
+          "weight": 1.0
+        },
+        {
+          "keyword": "용돈",
+          "weight": 1.0
+        },
+        {
+          "keyword": "카네이션",
+          "weight": 1.0
+        },
+        {
+          "keyword": "홍삼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "효도",
+          "weight": 1.0
+        },
+        {
+          "keyword": "효도선물",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "teachers_day": {
+      "include": [
+        {
+          "keyword": "감사",
+          "weight": 1.0
+        },
+        {
+          "keyword": "감사카드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "기념",
+          "weight": 1.0
+        },
+        {
+          "keyword": "꽃",
+          "weight": 1.0
+        },
+        {
+          "keyword": "답례",
+          "weight": 1.0
+        },
+        {
+          "keyword": "메시지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선생님",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스승의날",
+          "weight": 1.0
+        },
+        {
+          "keyword": "카네이션",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "chuseok": {
+      "include": [
+        {
+          "keyword": "과일세트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "명절",
+          "weight": 1.0
+        },
+        {
+          "keyword": "명절음식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물세트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "송편",
+          "weight": 1.0
+        },
+        {
+          "keyword": "전통",
+          "weight": 1.0
+        },
+        {
+          "keyword": "제사",
+          "weight": 1.0
+        },
+        {
+          "keyword": "차례",
+          "weight": 1.0
+        },
+        {
+          "keyword": "추석",
+          "weight": 1.0
+        },
+        {
+          "keyword": "한가위",
+          "weight": 1.0
+        },
+        {
+          "keyword": "한과",
+          "weight": 1.0
+        },
+        {
+          "keyword": "홍삼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "효도선물",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "halloween": {
+      "include": [
+        {
+          "keyword": "halloween",
+          "weight": 1.0
+        },
+        {
+          "keyword": "가면",
+          "weight": 1.0
+        },
+        {
+          "keyword": "데코",
+          "weight": 1.0
+        },
+        {
+          "keyword": "분장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "사탕",
+          "weight": 1.0
+        },
+        {
+          "keyword": "유령",
+          "weight": 1.0
+        },
+        {
+          "keyword": "의상",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캔디",
+          "weight": 1.0
+        },
+        {
+          "keyword": "코스튬",
+          "weight": 1.0
+        },
+        {
+          "keyword": "파티",
+          "weight": 1.0
+        },
+        {
+          "keyword": "펌킨",
+          "weight": 1.0
+        },
+        {
+          "keyword": "할로윈",
+          "weight": 1.0
+        },
+        {
+          "keyword": "호박",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "pepero_day": {
+      "include": [
+        {
+          "keyword": "11월11일",
+          "weight": 1.0
+        },
+        {
+          "keyword": "간식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "기념일",
+          "weight": 1.0
+        },
+        {
+          "keyword": "빼빼로",
+          "weight": 1.0
+        },
+        {
+          "keyword": "빼빼로데이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초코",
+          "weight": 1.0
+        },
+        {
+          "keyword": "초콜릿",
+          "weight": 1.0
+        },
+        {
+          "keyword": "포장",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "christmas": {
+      "include": [
+        {
+          "keyword": "christmas",
+          "weight": 1.0
+        },
+        {
+          "keyword": "루돌프",
+          "weight": 1.0
+        },
+        {
+          "keyword": "리스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "산타",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "오너먼트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "전구",
+          "weight": 1.0
+        },
+        {
+          "keyword": "캐롤",
+          "weight": 1.0
+        },
+        {
+          "keyword": "크리스마스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "크리스마스선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "트리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "파티",
+          "weight": 1.0
+        },
+        {
+          "keyword": "포장",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "year_end_party": {
+      "include": [
+        {
+          "keyword": "가랜드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "모임",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "송년",
+          "weight": 1.0
+        },
+        {
+          "keyword": "송년회",
+          "weight": 1.0
+        },
+        {
+          "keyword": "연말",
+          "weight": 1.0
+        },
+        {
+          "keyword": "연말파티",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "파티",
+          "weight": 1.0
+        },
+        {
+          "keyword": "풍선",
+          "weight": 1.0
+        },
+        {
+          "keyword": "홈파티",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "heater_install": {
+      "include": [
+        {
+          "keyword": "난방",
+          "weight": 1.0
+        },
+        {
+          "keyword": "단열",
+          "weight": 1.0
+        },
+        {
+          "keyword": "라디에이터",
+          "weight": 1.0
+        },
+        {
+          "keyword": "문풍지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "보일러",
+          "weight": 1.0
+        },
+        {
+          "keyword": "온수",
+          "weight": 1.0
+        },
+        {
+          "keyword": "온수매트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "온열",
+          "weight": 1.0
+        },
+        {
+          "keyword": "전기장판",
+          "weight": 1.0
+        },
+        {
+          "keyword": "전기히터",
+          "weight": 1.0
+        },
+        {
+          "keyword": "점검",
+          "weight": 1.0
+        },
+        {
+          "keyword": "히터",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "graduation": {
+      "include": [
+        {
+          "keyword": "교복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "기념",
+          "weight": 1.0
+        },
+        {
+          "keyword": "꽃다발",
+          "weight": 1.0
+        },
+        {
+          "keyword": "부케",
+          "weight": 1.0
+        },
+        {
+          "keyword": "선물",
+          "weight": 1.0
+        },
+        {
+          "keyword": "입학",
+          "weight": 1.0
+        },
+        {
+          "keyword": "입학식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "정장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "졸업",
+          "weight": 1.0
+        },
+        {
+          "keyword": "졸업식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "학사모",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "back_to_school": {
+      "include": [
+        {
+          "keyword": "가방",
+          "weight": 1.0
+        },
+        {
+          "keyword": "공책",
+          "weight": 1.0
+        },
+        {
+          "keyword": "교복",
+          "weight": 1.0
+        },
+        {
+          "keyword": "노트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "백팩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "새학기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "신학기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "실내화",
+          "weight": 1.0
+        },
+        {
+          "keyword": "연필",
+          "weight": 1.0
+        },
+        {
+          "keyword": "입학",
+          "weight": 1.0
+        },
+        {
+          "keyword": "지우개",
+          "weight": 1.0
+        },
+        {
+          "keyword": "책가방",
+          "weight": 1.0
+        },
+        {
+          "keyword": "필통",
+          "weight": 1.0
+        },
+        {
+          "keyword": "학용품",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "moving_season": {
+      "include": [
+        {
+          "keyword": "박스",
+          "weight": 1.0
+        },
+        {
+          "keyword": "뽁뽁이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수납",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수납함",
+          "weight": 1.0
+        },
+        {
+          "keyword": "완충",
+          "weight": 1.0
+        },
+        {
+          "keyword": "이사",
+          "weight": 1.0
+        },
+        {
+          "keyword": "정리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "정리함",
+          "weight": 1.0
+        },
+        {
+          "keyword": "청소",
+          "weight": 1.0
+        },
+        {
+          "keyword": "커터",
+          "weight": 1.0
+        },
+        {
+          "keyword": "테이프",
+          "weight": 1.0
+        },
+        {
+          "keyword": "포장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "행거",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "spring_cleaning": {
+      "include": [
+        {
+          "keyword": "곰팡이",
+          "weight": 1.0
+        },
+        {
+          "keyword": "대청소",
+          "weight": 1.0
+        },
+        {
+          "keyword": "먼지",
+          "weight": 1.0
+        },
+        {
+          "keyword": "물걸레",
+          "weight": 1.0
+        },
+        {
+          "keyword": "밀대",
+          "weight": 1.0
+        },
+        {
+          "keyword": "브러시",
+          "weight": 1.0
+        },
+        {
+          "keyword": "세제",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수납",
+          "weight": 1.0
+        },
+        {
+          "keyword": "정리",
+          "weight": 1.0
+        },
+        {
+          "keyword": "청소",
+          "weight": 1.0
+        },
+        {
+          "keyword": "청소기",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "aircon_install": {
+      "include": [
+        {
+          "keyword": "냉매",
+          "weight": 1.0
+        },
+        {
+          "keyword": "배관",
+          "weight": 1.0
+        },
+        {
+          "keyword": "설치",
+          "weight": 1.0
+        },
+        {
+          "keyword": "세척",
+          "weight": 1.0
+        },
+        {
+          "keyword": "실외기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "에어컨",
+          "weight": 1.0
+        },
+        {
+          "keyword": "에어컨필터",
+          "weight": 1.0
+        },
+        {
+          "keyword": "청소",
+          "weight": 1.0
+        },
+        {
+          "keyword": "커버",
+          "weight": 1.0
+        },
+        {
+          "keyword": "필터",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "wedding_spring": {
+      "include": [
+        {
+          "keyword": "결혼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "답례품",
+          "weight": 1.0
+        },
+        {
+          "keyword": "부케",
+          "weight": 1.0
+        },
+        {
+          "keyword": "신혼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "예식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "웨딩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "청첩장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "축의",
+          "weight": 1.0
+        },
+        {
+          "keyword": "허니문",
+          "weight": 1.0
+        },
+        {
+          "keyword": "혼수",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "wedding_fall": {
+      "include": [
+        {
+          "keyword": "가을예식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "결혼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "답례품",
+          "weight": 1.0
+        },
+        {
+          "keyword": "부케",
+          "weight": 1.0
+        },
+        {
+          "keyword": "신혼",
+          "weight": 1.0
+        },
+        {
+          "keyword": "예식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "웨딩",
+          "weight": 1.0
+        },
+        {
+          "keyword": "청첩장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "축의",
+          "weight": 1.0
+        },
+        {
+          "keyword": "혼수",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "exam_season": {
+      "include": [
+        {
+          "keyword": "간식",
+          "weight": 1.0
+        },
+        {
+          "keyword": "공부",
+          "weight": 1.0
+        },
+        {
+          "keyword": "독서실",
+          "weight": 1.0
+        },
+        {
+          "keyword": "문제집",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수능",
+          "weight": 1.0
+        },
+        {
+          "keyword": "수험생",
+          "weight": 1.0
+        },
+        {
+          "keyword": "스탠드",
+          "weight": 1.0
+        },
+        {
+          "keyword": "시험",
+          "weight": 1.0
+        },
+        {
+          "keyword": "영양제",
+          "weight": 1.0
+        },
+        {
+          "keyword": "응원",
+          "weight": 1.0
+        },
+        {
+          "keyword": "집중",
+          "weight": 1.0
+        },
+        {
+          "keyword": "책상",
+          "weight": 1.0
+        },
+        {
+          "keyword": "필기",
+          "weight": 1.0
+        },
+        {
+          "keyword": "합격",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    },
+    "kimjang": {
+      "include": [
+        {
+          "keyword": "고춧가루",
+          "weight": 1.0
+        },
+        {
+          "keyword": "김장",
+          "weight": 1.0
+        },
+        {
+          "keyword": "김장매트",
+          "weight": 1.0
+        },
+        {
+          "keyword": "김치",
+          "weight": 1.0
+        },
+        {
+          "keyword": "김치냉장고",
+          "weight": 1.0
+        },
+        {
+          "keyword": "김치통",
+          "weight": 1.0
+        },
+        {
+          "keyword": "무",
+          "weight": 1.0
+        },
+        {
+          "keyword": "밀폐",
+          "weight": 1.0
+        },
+        {
+          "keyword": "배추",
+          "weight": 1.0
+        },
+        {
+          "keyword": "앞치마",
+          "weight": 1.0
+        },
+        {
+          "keyword": "양념",
+          "weight": 1.0
+        },
+        {
+          "keyword": "장갑",
+          "weight": 1.0
+        },
+        {
+          "keyword": "절임",
+          "weight": 1.0
+        }
+      ],
+      "exclude": [],
+      "allowed": []
+    }
+  }
+}
