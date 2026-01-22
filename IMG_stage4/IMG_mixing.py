@@ -2071,11 +2071,11 @@ class IMGMixingGUI(tk.Tk):
         recovered_count = 0
         
         try:
-            # 현재 디렉토리에서 이전 디버그 로그 파일 찾기
+            # 현재 디렉토리에서 이전 디버그 로그 파일 찾기 (.log 및 .txt 모두 지원)
             log_files = []
             if os.path.exists(log_dir):
                 for f in os.listdir(log_dir):
-                    if f.startswith("img_mixing_debug_") and f.endswith(".log"):
+                    if f.startswith("img_mixing_debug_") and (f.endswith(".log") or f.endswith(".txt")):
                         log_path = os.path.join(log_dir, f)
                         # 현재 생성되는 로그 파일 제외 (아직 초기화 단계이므로)
                         if os.path.getmtime(log_path) < time.time() - 5:  # 5초 이전 파일만
