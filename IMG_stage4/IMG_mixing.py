@@ -1993,37 +1993,47 @@ class IMGMixingGUI(tk.Tk):
                 self._log(f"⚠️ output 디렉토리 읽기 실패: {e}")
                 return 0
             
-            # comp_row{N}_ 패턴으로 시작하는 파일 찾기
+            # comp_{상품코드}_row{N}_ 또는 comp_row{N}_ 패턴으로 시작하는 파일 찾기
             comp_files = {}
             for filename in output_files:
-                if filename.endswith('.png') and filename.startswith('comp_row'):
-                    # comp_row{N}_ 패턴 추출
-                    match = re.match(r'comp_row(\d+)_', filename)
-                    if match:
-                        row_num = int(match.group(1))
-                        row_idx = row_num - 1
-                        
-                        # 엑셀 범위 체크 (먼저 필터링)
-                        if row_idx < 0 or row_idx >= len(df):
+                if filename.endswith('.png') and filename.startswith('comp'):
+                    # 새 패턴: comp_{상품코드}_row{N}_ 또는 기존 패턴: comp_row{N}_
+                    match_new = re.match(r'comp_([^_]+)_row(\d+)_', filename)
+                    match_old = re.match(r'comp_row(\d+)_', filename)
+
+                    if match_new:
+                        file_product_code = match_new.group(1)
+                        row_num = int(match_new.group(2))
+                    elif match_old:
+                        file_product_code = None  # 기존 패턴은 상품코드 없음
+                        row_num = int(match_old.group(1))
+                    else:
+                        continue
+
+                    row_idx = row_num - 1
+
+                    # 엑셀 범위 체크 (먼저 필터링)
+                    if row_idx < 0 or row_idx >= len(df):
+                        continue
+
+                    file_path = os.path.join(comfyui_output_dir, filename)
+                    file_mtime = os.path.getmtime(file_path)
+
+                    # 엑셀 파일 수정 시간과 비교하여 검증 (7일 이내 파일만)
+                    if excel_mtime:
+                        time_diff = abs(file_mtime - excel_mtime)
+                        # 파일이 엑셀 수정 시간보다 너무 오래 전이거나 미래면 스킵 (다른 작업 파일일 가능성)
+                        if file_mtime < excel_mtime - time_window or file_mtime > excel_mtime + time_window:
                             continue
-                        
-                        file_path = os.path.join(comfyui_output_dir, filename)
-                        file_mtime = os.path.getmtime(file_path)
-                        
-                        # 엑셀 파일 수정 시간과 비교하여 검증 (7일 이내 파일만)
-                        if excel_mtime:
-                            time_diff = abs(file_mtime - excel_mtime)
-                            # 파일이 엑셀 수정 시간보다 너무 오래 전이거나 미래면 스킵 (다른 작업 파일일 가능성)
-                            if file_mtime < excel_mtime - time_window or file_mtime > excel_mtime + time_window:
-                                continue
-                        
-                        if row_idx not in comp_files:
-                            comp_files[row_idx] = []
-                        comp_files[row_idx].append({
-                            'filename': filename,
-                            'path': file_path,
-                            'mtime': file_mtime
-                        })
+
+                    if row_idx not in comp_files:
+                        comp_files[row_idx] = []
+                    comp_files[row_idx].append({
+                        'filename': filename,
+                        'path': file_path,
+                        'mtime': file_mtime,
+                        'product_code': file_product_code  # 상품코드 저장
+                    })
             
             if not comp_files:
                 self._log(f"📂 Output 디렉토리에서 합성 이미지 파일을 찾을 수 없습니다.")
@@ -2038,18 +2048,35 @@ class IMGMixingGUI(tk.Tk):
                 existing_path = str(df.at[row_idx, "IMG_S4_mix_생성경로"]).strip()
                 if existing_path and existing_path != "nan" and os.path.exists(existing_path):
                     continue
-                
+
+                # 엑셀의 해당 row 상품코드 가져오기
+                excel_product_code = str(df.at[row_idx, "상품코드"]).strip() if "상품코드" in df.columns else ""
+                safe_excel_code = re.sub(r'[\\/*?:"<>|]', '', excel_product_code)[:30] if excel_product_code else ""
+
+                # 상품코드로 필터링: 엑셀 상품코드와 파일 상품코드가 일치하는 것만
+                matching_files = []
+                for f in files:
+                    if safe_excel_code:
+                        # 엑셀에 상품코드가 있으면, 파일도 같은 상품코드여야 함
+                        if f['product_code'] == safe_excel_code:
+                            matching_files.append(f)
+                    else:
+                        # 엑셀에 상품코드가 없으면, 파일도 상품코드 없는 기존 패턴만
+                        if f['product_code'] is None:
+                            matching_files.append(f)
+
+                if not matching_files:
+                    continue
+
                 # 가장 최근 파일 선택 (타임스탬프 기준)
-                files.sort(key=lambda x: x['mtime'], reverse=True)
-                file_path = files[0]['path']
-                
+                matching_files.sort(key=lambda x: x['mtime'], reverse=True)
+                file_path = matching_files[0]['path']
+
                 if os.path.exists(file_path):
                     df.at[row_idx, "IMG_S4_mix_생성경로"] = file_path
                     recovered_count += 1
                     if recovered_count <= 10:  # 처음 10개만 상세 로그
-                        # 상품코드 정보도 로그에 추가 (검증용)
-                        product_code = str(df.at[row_idx, "상품코드"]).strip() if "상품코드" in df.columns else "N/A"
-                        debug_log(f"복구 (output 스캔): row {row_idx+1} (상품코드: {product_code}) -> {files[0]['filename']}", "INFO")
+                        debug_log(f"복구 (output 스캔): row {row_idx+1} (상품코드: {excel_product_code}) -> {matching_files[0]['filename']}", "INFO")
             
             if recovered_count > 10:
                 debug_log(f"복구 (output 스캔): 추가로 {recovered_count - 10}건 복구됨", "INFO")
@@ -2100,11 +2127,11 @@ class IMGMixingGUI(tk.Tk):
                     file_completed_count = 0
                     with open(log_path, "r", encoding="utf-8") as f:
                         for line in f:
-                            # [배치] [N/M] ✅ 처리 완료: comp_row{N}_...png 패턴 찾기
-                            match = re.search(r'\[배치\]\s*\[\d+/\d+\]\s*✅\s*처리\s*완료:\s*(comp_row(\d+)_[^\s]+\.png)', line)
+                            # [배치] [N/M] ✅ 처리 완료: comp_{상품코드}_row{N}_...png 또는 comp_row{N}_...png 패턴 찾기
+                            match = re.search(r'\[배치\]\s*\[\d+/\d+\]\s*✅\s*처리\s*완료:\s*(comp_(?:[^_]+_)?row(\d+)_[^\s]+\.png)', line)
                             if match:
                                 filename = match.group(1)
-                                row_num = int(match.group(2))  # comp_row{N}에서 N 추출
+                                row_num = int(match.group(2))  # row{N}에서 N 추출
                                 row_idx = row_num - 1  # 엑셀 인덱스는 0부터 시작
                                 
                                 # 모든 로그 파일에서 누적 수집 (중복 허용)
@@ -2204,10 +2231,20 @@ class IMGMixingGUI(tk.Tk):
                         product_code = str(df.at[row_idx, "상품코드"]).strip() if "상품코드" in df.columns else "N/A"
                         debug_log(f"복구 (로그): row {row_idx+1} (상품코드: {product_code}) -> {filename}", "INFO")
                 else:
-                    # 정확한 매칭 실패 시 부분 매칭 시도 (comp_row{N}_로 시작하는 파일 찾기)
+                    # 정확한 매칭 실패 시 부분 매칭 시도
                     row_num = row_idx + 1
-                    prefix = f"comp_row{row_num}_"
-                    matching_files = [f for f in output_files if f.startswith(prefix)]
+                    # 상품코드로 먼저 매칭 시도, 없으면 row 번호로 매칭
+                    product_code_for_match = str(df.at[row_idx, "상품코드"]).strip() if "상품코드" in df.columns else ""
+                    safe_code = re.sub(r'[\\/*?:"<>|]', '', product_code_for_match)[:30] if product_code_for_match else ""
+
+                    # 상품코드가 있으면 새 패턴만 매칭 (다른 엑셀 파일과 충돌 방지)
+                    # 상품코드가 없으면 기존 패턴으로 매칭 (하위 호환)
+                    if safe_code:
+                        prefix_new = f"comp_{safe_code}_row{row_num}_"
+                        matching_files = [f for f in output_files if f.startswith(prefix_new)]
+                    else:
+                        prefix_old = f"comp_row{row_num}_"
+                        matching_files = [f for f in output_files if f.startswith(prefix_old)]
                     if matching_files:
                         # 가장 최근 파일 선택 (타임스탬프 기준) + 시간 검증
                         files_with_time = []
@@ -2677,7 +2714,7 @@ class IMGMixingGUI(tk.Tk):
                     break
 
                 # 1단계: 큐에 여유가 있으면 새 항목 제출
-                while len(active_prompts) < batch_size and item_index < len(items):
+                while len(active_prompts) < batch_size and item_index < len(items) and not self.stop_requested:
                     item = items[item_index]
                     item_num = item_index + 1
                     item_start_time = time.time()
@@ -2723,8 +2760,14 @@ class IMGMixingGUI(tk.Tk):
                         if not bg_load_node:
                             raise Exception("배경 이미지 노드(LoadImage BG)를 찾을 수 없습니다.")
                         
-                        # 유니크 prefix 생성
-                        unique_prefix = f"comp_row{item['idx']+1}_{int(time.time()*1000)}_"
+                        # 유니크 prefix 생성 (상품코드 포함)
+                        # 상품코드에서 파일명으로 사용 불가능한 문자 제거
+                        safe_product_code = re.sub(r'[\\/*?:"<>|]', '', item.get('product_code', '') or '')
+                        safe_product_code = safe_product_code[:30]  # 길이 제한
+                        if safe_product_code:
+                            unique_prefix = f"comp_{safe_product_code}_row{item['idx']+1}_{int(time.time()*1000)}_"
+                        else:
+                            unique_prefix = f"comp_row{item['idx']+1}_{int(time.time()*1000)}_"
                         
                         # FG/BG 이미지 복사
                         if not comfyui_input_dir:
@@ -2800,9 +2843,9 @@ class IMGMixingGUI(tk.Tk):
                         # 완료 데이터 가져오기 (폴백: wait_for_completion 사용)
                         completion_data = client.get_completion_data(prompt_id)
                         if not completion_data:
-                            # 폴백: 짧은 타임아웃으로 완료 대기
+                            # 폴백: 짧은 타임아웃으로 완료 대기 (중단 체크를 위해 2초로 제한)
                             self._log(f"[배치] [{item_num}/{stats['total']}] 완료 데이터 확인 중...")
-                            completion_data = client.wait_for_completion(prompt_id, timeout=10)
+                            completion_data = client.wait_for_completion(prompt_id, timeout=2)
                         
                         # 진행률 업데이트
                         completed_count += 1
@@ -2913,8 +2956,8 @@ class IMGMixingGUI(tk.Tk):
                             debug_log(f"중간 저장 오류: {save_err}", "ERROR")
 
                 # 3단계: 완료되지 않은 항목이 있으면 잠시 대기 (CPU 부하 감소)
-                if active_prompts:
-                    time.sleep(0.3)  # 0.3초 대기 후 다시 확인
+                if active_prompts and not self.stop_requested:
+                    time.sleep(0.1)  # 0.1초 대기 후 다시 확인 (중단 반응 속도 개선)
 
             # 엑셀 저장 (중단 요청 시에도 처리된 항목까지 저장)
             if self.stop_requested:

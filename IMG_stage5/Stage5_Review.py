@@ -19,6 +19,99 @@ from typing import Optional, Dict, Any, List
 from pathlib import Path
 
 import pandas as pd
+
+# ========================================================
+# 상대 경로 지원 (외부 PC 패키지 작업용)
+# ========================================================
+def resolve_path(path_str: str, base_dir: str) -> str:
+    """
+    경로를 절대 경로로 변환합니다.
+    - 절대 경로: 그대로 반환
+    - 상대 경로: base_dir 기준으로 절대 경로로 변환
+
+    Args:
+        path_str: 경로 문자열
+        base_dir: 기준 디렉토리 (엑셀 파일이 있는 디렉토리)
+
+    Returns:
+        절대 경로 문자열
+    """
+    if not path_str or path_str.strip() == "" or path_str == "nan":
+        return path_str
+
+    path_str = path_str.strip()
+
+    # 이미 절대 경로인 경우
+    if os.path.isabs(path_str):
+        return path_str
+
+    # 상대 경로인 경우 base_dir 기준으로 변환
+    resolved = os.path.normpath(os.path.join(base_dir, path_str))
+    return resolved
+
+
+def to_relative_path(abs_path: str, base_dir: str) -> str:
+    """
+    절대 경로를 상대 경로로 변환합니다.
+
+    Args:
+        abs_path: 절대 경로 문자열
+        base_dir: 기준 디렉토리
+
+    Returns:
+        상대 경로 문자열 (변환 불가 시 원본 반환)
+    """
+    if not abs_path or abs_path.strip() == "" or abs_path == "nan":
+        return abs_path
+
+    abs_path = abs_path.strip()
+
+    # 이미 상대 경로인 경우 그대로 반환
+    if not os.path.isabs(abs_path):
+        return abs_path
+
+    try:
+        rel_path = os.path.relpath(abs_path, base_dir)
+        return rel_path
+    except ValueError:
+        # Windows에서 드라이브가 다른 경우 등
+        return abs_path
+
+
+def detect_package_mode(excel_dir: str) -> bool:
+    """
+    패키지 모드인지 감지합니다.
+    manifest.json 파일이 존재하면 패키지 모드입니다.
+
+    Args:
+        excel_dir: 엑셀 파일이 있는 디렉토리
+
+    Returns:
+        패키지 모드 여부
+    """
+    manifest_path = os.path.join(excel_dir, "manifest.json")
+    return os.path.exists(manifest_path)
+
+
+def load_manifest(excel_dir: str) -> Optional[Dict[str, Any]]:
+    """
+    manifest.json 파일을 로드합니다.
+
+    Args:
+        excel_dir: 엑셀 파일이 있는 디렉토리
+
+    Returns:
+        manifest 데이터 딕셔너리, 없으면 None
+    """
+    manifest_path = os.path.join(excel_dir, "manifest.json")
+    if not os.path.exists(manifest_path):
+        return None
+
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return None
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinter.scrolledtext import ScrolledText
@@ -348,7 +441,12 @@ class Stage5ReviewGUI(tk.Tk):
         self.photo_original = None
         self.photo_nukki = None
         self.photo_mix = None
-        
+
+        # 패키지 모드 (외부 PC 작업용)
+        self.package_mode = False
+        self.base_dir = None  # 엑셀 파일 기준 디렉토리
+        self.manifest = None  # 패키지 manifest 데이터
+
         # UI 구성
         self._init_ui()
     
@@ -508,16 +606,29 @@ class Stage5ReviewGUI(tk.Tk):
                 
                 self.input_file_path.set(path)
                 self._log(f"파일 선택됨: {base_name}")
-                
+
                 # 엑셀 파일이 있는 디렉토리를 기준으로 출력 폴더 자동 설정
                 excel_dir = os.path.dirname(path)
+
+                # 패키지 모드 감지 (manifest.json 존재 여부)
+                self.base_dir = excel_dir
+                self.package_mode = detect_package_mode(excel_dir)
+                if self.package_mode:
+                    self.manifest = load_manifest(excel_dir)
+                    self._log(f"[패키지 모드] manifest.json 감지됨 - 상대 경로 모드로 동작합니다.")
+                    if self.manifest:
+                        self._log(f"  작업명: {self.manifest.get('job_name', '-')}")
+                        self._log(f"  원본 경로: {self.manifest.get('original_base_dir', '-')}")
+                else:
+                    self.manifest = None
+
                 # 엑셀 파일명에서 확장자 제거한 이름으로 하위 폴더 생성
                 excel_base_name = os.path.splitext(base_name)[0]
                 # 버전 정보 제거 (예: _T3_I4 제거)
                 excel_base_name = re.sub(r"_T\d+_I\d+$", "", excel_base_name)
                 # 기본 출력 폴더: 엑셀파일과 같은 디렉토리 / "최종이미지_엑셀파일명"
                 default_output_dir = os.path.join(excel_dir, f"최종이미지_{excel_base_name}")
-                
+
                 # 출력 폴더가 비어있거나 기본값이면 자동 설정
                 if not self.output_dir_path.get() or self.output_dir_path.get() == "":
                     self.output_dir_path.set(default_output_dir)
@@ -575,17 +686,23 @@ class Stage5ReviewGUI(tk.Tk):
             original_path = str(row.get("썸네일경로", "")).strip()
             nukki_path = str(row.get("IMG_S1_누끼", "")).strip()
             mix_path = str(row.get("IMG_S4_mix_생성경로", "")).strip()
-            
+
+            # 상대 경로 지원: base_dir 기준으로 절대 경로로 변환
+            if self.base_dir:
+                original_path = resolve_path(original_path, self.base_dir)
+                nukki_path = resolve_path(nukki_path, self.base_dir)
+                mix_path = resolve_path(mix_path, self.base_dir)
+
             # 필수 이미지 경로 확인
             if not nukki_path or nukki_path == "nan" or not os.path.exists(nukki_path):
                 self._log(f"[Row {idx+1}] IMG_S1_누끼 경로가 없거나 파일이 존재하지 않습니다. 건너뜁니다.")
                 skipped_count += 1
                 continue
-            
+
             # 원본 이미지는 선택사항
             if original_path and original_path != "nan" and not os.path.exists(original_path):
                 original_path = None
-            
+
             # 합성 이미지는 선택사항 (1번 선택 시 사용 안 함)
             if mix_path and mix_path != "nan" and not os.path.exists(mix_path):
                 mix_path = None
@@ -1515,8 +1632,9 @@ class Stage5ReviewGUI(tk.Tk):
                         # 이미지 변환 및 복사
                         if resize_and_convert_to_jpg(nukki_path, output_path):
                             success_count += 1
-                            # 엑셀에 경로 업데이트
-                            self.df.at[row_idx, nukki_col] = output_path
+                            # 엑셀에 경로 업데이트 (패키지 모드면 상대 경로로)
+                            save_path = to_relative_path(output_path, self.base_dir) if self.package_mode else output_path
+                            self.df.at[row_idx, nukki_col] = save_path
                             self.df.at[row_idx, mix_col] = ""  # 믹스는 사용 안 함
                             # 로그 출력 빈도 줄이기 (100건마다 또는 마지막)
                             if processed_count % 100 == 0 or processed_count == total_items:
@@ -1545,7 +1663,9 @@ class Stage5ReviewGUI(tk.Tk):
                         
                         if resize_and_convert_to_jpg(nukki_path, output_path_01):
                             nukki_success = True
-                            self.df.at[row_idx, nukki_col] = output_path_01
+                            # 엑셀에 경로 업데이트 (패키지 모드면 상대 경로로)
+                            save_path_01 = to_relative_path(output_path_01, self.base_dir) if self.package_mode else output_path_01
+                            self.df.at[row_idx, nukki_col] = save_path_01
                             # 로그 출력 빈도 줄이기
                             if processed_count % 100 == 0 or processed_count == total_items:
                                 self._log(f"[진행] {processed_count}/{total_items}건 처리 완료 (성공: {success_count}건)")
@@ -1565,7 +1685,9 @@ class Stage5ReviewGUI(tk.Tk):
                         
                         if resize_and_convert_to_jpg(mix_path, output_path_02):
                             mix_success = True
-                            self.df.at[row_idx, mix_col] = output_path_02
+                            # 엑셀에 경로 업데이트 (패키지 모드면 상대 경로로)
+                            save_path_02 = to_relative_path(output_path_02, self.base_dir) if self.package_mode else output_path_02
+                            self.df.at[row_idx, mix_col] = save_path_02
                             # 로그 출력 빈도 줄이기
                             if processed_count % 100 == 0 or processed_count == total_items:
                                 self._log(f"[진행] {processed_count}/{total_items}건 처리 완료 (성공: {success_count}건)")
