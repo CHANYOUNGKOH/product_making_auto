@@ -392,7 +392,7 @@ class Stage5ExportToolGUI(tk.Tk):
             # 총 이미지 수 계산
             for col in col_mappings.keys():
                 if col in df.columns:
-                    total_images += df[col].notna().sum()
+                    total_images += int(df[col].notna().sum())
 
             self.after(0, lambda: self.progress_bar.config(maximum=total_images if total_images > 0 else 1))
 
