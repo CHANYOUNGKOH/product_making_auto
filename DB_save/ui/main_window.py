@@ -5836,6 +5836,7 @@ class MainWindow(tk.Tk):
             import pandas as pd
             import json
             from datetime import datetime
+            from time import perf_counter
             
             # 진행 상황 다이얼로그 생성
             progress_dialog = self._create_progress_dialog("데이터 출고 진행 중")
@@ -5975,6 +5976,12 @@ class MainWindow(tk.Tk):
                 # 스토어별로 처리
                 # 시트별로 선택된 카테고리 목록 (스토어 메모에 카테고리가 있는 스토어는 해당 카테고리 사용)
                 for market_info in sheet_markets:
+                    store_started_at = perf_counter()
+                    store_collect_elapsed = 0.0
+                    store_assignment_elapsed = 0.0
+                    db_write_elapsed = 0.0
+                    file_write_elapsed = 0.0
+
                     market_name = market_info.get("market_name", "")
                     business_number = market_info.get("business_number", "")
                     alias = market_info.get("alias", "")
@@ -6030,6 +6037,7 @@ class MainWindow(tk.Tk):
                     
                     # 해당 스토어에서 사용 가능한 조합 조회 (스토어별로 business_number로 필터링)
                     # ??? ????? ??/?? ??
+                    collect_started_at = perf_counter()
                     available_combinations_by_category, all_products_by_code, store_season_stats, season_filter_enabled = self._collect_store_category_combinations(
                         db_handler=db_handler,
                         sheet_name=sheet_name,
@@ -6042,9 +6050,14 @@ class MainWindow(tk.Tk):
                         sheet_used_combinations_cache=sheet_used_combinations_cache,
                         store_used_product_codes_cache=store_used_product_codes_cache,
                     )
+                    store_collect_elapsed = perf_counter() - collect_started_at
 
                     if not all_products_by_code:
                         self._log(f"  ⚠️ 스토어 '{market_name}' (별칭: {alias}): 사용 가능한 조합 없음")
+                        store_total_elapsed = perf_counter() - store_started_at
+                        self._log(
+                            f"  ⏱️ 성능계측[{alias}] 조합수집 {store_collect_elapsed:.3f}s / 총 {store_total_elapsed:.3f}s"
+                        )
                         continue
                     
                     # 해당 스토어의 데이터 수집
@@ -6079,6 +6092,7 @@ class MainWindow(tk.Tk):
                     market_id = market_id_cache.get(sheet_name)
                     store_categories_note = ', '.join(store_categories) if store_categories else 'N/A'
                     
+                    assignment_started_at = perf_counter()
                     for product_code in product_codes_list:
                         # 등록된 상품수량 필터링 (출력 상품수량 제한 필터 전에 검증)
                         if store_registered_limit is not None:
@@ -6251,7 +6265,10 @@ class MainWindow(tk.Tk):
                         else:
                             self._log(f"      ⏭️ DB 기록 건너뜀 (재다운로드): 상품코드 '{product_code}' → 마켓 '{sheet_name}' / 스토어 '{market_name}' / 조합: {url_type}url + 상품명({line_index+1}번째줄)")
                     
+                    store_assignment_elapsed = perf_counter() - assignment_started_at
+
                     # 배치 INSERT 실행 (성능 최적화)
+                    db_write_started_at = perf_counter()
                     try:
                         cursor = db_handler.conn.cursor()
                         
@@ -6283,6 +6300,8 @@ class MainWindow(tk.Tk):
                         self._log(f"    ⚠️ 배치 DB 기록 실패: {e}")
                         import traceback
                         self._log(traceback.format_exc())
+                    finally:
+                        db_write_elapsed = perf_counter() - db_write_started_at
                     
                     # 배치 리스트 초기화 (다음 스토어를 위해)
                     combination_assignments_batch.clear()
@@ -6330,6 +6349,7 @@ class MainWindow(tk.Tk):
                         
                         filepath = os.path.join(save_dir, filename)
                         
+                        file_write_started_at = perf_counter()
                         try:
                             df = pd.DataFrame(market_export_data)
                             # ExcelWriter를 사용하여 권한 문제 해결 (임시 파일 사용 안 함)
@@ -6407,6 +6427,7 @@ class MainWindow(tk.Tk):
                                 progress = int((processed_stores / total_stores) * 95) + 5  # 5% ~ 100%
                                 self._update_progress(progress, f"스토어 처리 중: {processed_stores}/{total_stores} ({alias})")
                         except Exception as e:
+                            file_write_elapsed = perf_counter() - file_write_started_at
                             self._log(f"❌ 파일 저장 실패: {filename} - {e}")
                             # 진행률 업데이트 (실패해도 카운트)
                             processed_stores += 1
@@ -6414,6 +6435,8 @@ class MainWindow(tk.Tk):
                                 progress = int((processed_stores / total_stores) * 95) + 5
                                 self._update_progress(progress, f"스토어 처리 중: {processed_stores}/{total_stores} ({alias})")
                                 self._update_progress_dialog(progress_dialog, progress, f"스토어 처리 중: {processed_stores}/{total_stores}", f"⚠️ {alias}: 파일 저장 실패 - {e}")
+                        else:
+                            file_write_elapsed = perf_counter() - file_write_started_at
                     else:
                         self._log(f"  ⚠️ 스토어 '{market_name}' (별칭: {alias}): 할당된 조합 없음")
                         # 디버깅: 왜 할당되지 않았는지 확인
@@ -6438,6 +6461,13 @@ class MainWindow(tk.Tk):
                             progress = int((processed_stores / total_stores) * 95) + 5
                             self._update_progress(progress, f"스토어 처리 중: {processed_stores}/{total_stores} ({alias})")
                             self._update_progress_dialog(progress_dialog, progress, f"스토어 처리 중: {processed_stores}/{total_stores}", f"ℹ️ {alias}: 할당된 조합 없음 (스킵)")
+
+                    store_total_elapsed = perf_counter() - store_started_at
+                    self._log(
+                        f"  ⏱️ 성능계측[{alias}] 조합수집 {store_collect_elapsed:.3f}s / "
+                        f"코드할당 {store_assignment_elapsed:.3f}s / DB기록 {db_write_elapsed:.3f}s / "
+                        f"파일저장 {file_write_elapsed:.3f}s / 총 {store_total_elapsed:.3f}s"
+                    )
                 
                 self._log(f"=== {display_name} [{group_type}] 처리 완료 ===")
             
