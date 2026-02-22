@@ -6076,6 +6076,8 @@ class MainWindow(tk.Tk):
                         total_quantity_limit=total_quantity_limit,
                         global_used_combinations_db=global_used_combinations_db,
                     )
+                    market_id = market_id_cache.get(sheet_name)
+                    store_categories_note = ', '.join(store_categories) if store_categories else 'N/A'
                     
                     for product_code in product_codes_list:
                         # 등록된 상품수량 필터링 (출력 상품수량 제한 필터 전에 검증)
@@ -6203,9 +6205,6 @@ class MainWindow(tk.Tk):
                             store_processed_codes.add(product_code)
                         
                         # DB에 기록 준비 (배치 INSERT로 변경 - 성능 최적화)
-                        # market_id는 캐시에서 가져오기 (이미 조회됨)
-                        market_id = market_id_cache.get(sheet_name)
-                        
                         # 상품명 인덱스는 실제 사용한 줄 번호
                         product_name_index = line_index
                         image_mix_index = 0 if url_type == "mix" else None
@@ -6241,7 +6240,7 @@ class MainWindow(tk.Tk):
                                 image_mix_index,
                                 json.dumps(strategy, ensure_ascii=False),
                                 "SUCCESS",
-                                f"카테고리: {', '.join(store_categories) if store_categories else 'N/A'}, 마켓: {market_name}, 스토어별칭: {alias}, 줄번호: {line_index}",
+                                f"카테고리: {store_categories_note}, 마켓: {market_name}, 스토어별칭: {alias}, 줄번호: {line_index}",
                                 datetime.now().isoformat()
                             ))
                             market_logged_count += 1
