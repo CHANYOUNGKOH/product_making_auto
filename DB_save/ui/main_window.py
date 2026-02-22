@@ -6034,6 +6034,17 @@ class MainWindow(tk.Tk):
                     # 스토어별 수량 제한 로그
                     if total_quantity_limit is not None:
                         self._log(f"  📊 스토어 '{market_name}' (별칭: {alias}): 스토어별 수량 제한 {total_quantity_limit}개 적용")
+
+                    store_used_product_codes_cache = None
+                    if exclude_assigned:
+                        cache_key = business_number or ""
+                        if cache_key not in store_used_product_codes_cache_map:
+                            store_used_product_codes_cache_map[cache_key] = self._build_store_used_product_codes_cache(
+                                db_handler,
+                                sheet_name,
+                                business_number,
+                            )
+                        store_used_product_codes_cache = store_used_product_codes_cache_map.get(cache_key)
                     
                     # 해당 스토어에서 사용 가능한 조합 조회 (스토어별로 business_number로 필터링)
                     # ??? ????? ??/?? ??
