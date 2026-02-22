@@ -2169,6 +2169,113 @@ class MainWindow(tk.Tk):
     ) -> set:
         """스토어 단위 이미 사용된 상품코드 캐시 생성"""
         return build_store_used_product_codes_cache(db_handler.conn, sheet_name, business_number)
+
+    def _collect_store_category_combinations(
+        self,
+        db_handler: DBHandler,
+        sheet_name: str,
+        business_number: str,
+        store_categories: List[str],
+        exclude_assigned: bool,
+        product_code_filter_mode: str,
+        product_code_filter_codes,
+        export_mode: str,
+        sheet_used_combinations_cache: Dict[str, set],
+        store_used_product_codes_cache,
+    ):
+        """??? ????? ?? ?? + ?? ??/?? ??"""
+        available_combinations_by_category = {}
+        all_products_by_code = {}
+
+        season_filter_enabled = getattr(self, 'season_filter_var', tk.BooleanVar(value=True)).get() if export_mode == "upload" else False
+        season_config_for_log = None
+        check_season_validity = None
+        if season_filter_enabled:
+            try:
+                from season_filter_manager_gui import load_season_config, _check_season_validity
+                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                excel_path = os.path.join(script_dir, "Season_Filter_Seasons_Keywords.xlsx")
+                json_path = os.path.join(script_dir, "season_filters.json")
+                season_config_for_log = load_season_config(excel_path, json_path)
+                check_season_validity = _check_season_validity
+            except Exception:
+                season_config_for_log = None
+                check_season_validity = None
+
+        store_season_stats = {
+            'total_categories': len(store_categories),
+            'total_products_before': 0,
+            'total_products_after': 0,
+            'total_combinations': 0,
+            'season_excluded_count': 0,
+            'included_seasons': {},
+            'excluded_seasons': {}
+        }
+
+        for category in store_categories:
+            products = db_handler.get_products_for_upload(
+                category,
+                sheet_name,
+                business_number,
+                exclude_assigned=exclude_assigned,
+                season_filter_enabled=season_filter_enabled,
+                sheet_used_combinations=sheet_used_combinations_cache,
+                store_used_product_codes=store_used_product_codes_cache if exclude_assigned else None,
+                product_code_filter_mode=product_code_filter_mode,
+                product_code_filter_codes=product_code_filter_codes,
+            )
+
+            if product_code_filter_mode != "none" and product_code_filter_codes:
+                if hasattr(db_handler, '_last_product_code_filter_info') and db_handler._last_product_code_filter_info:
+                    filter_info = db_handler._last_product_code_filter_info.get(category)
+                    if filter_info:
+                        mode = filter_info.get('mode')
+                        original_codes = filter_info.get('original_product_codes_count', 0)
+                        filtered_codes = filter_info.get('filtered_product_codes_count', 0)
+                        excluded_codes = filter_info.get('excluded_codes_count', 0)
+                        original_combinations = filter_info.get('original_count', 0)
+                        filtered_combinations = filter_info.get('filtered_count', 0)
+
+                        if mode == "exclude" and excluded_codes > 0:
+                            self._log(
+                                f"    ?? ???? ???(??): {excluded_codes}? ???? ??? "
+                                f"(????: {original_codes}??{filtered_codes}?, ??: {original_combinations}??{filtered_combinations}?)"
+                            )
+                        elif mode == "include" and filtered_codes > 0:
+                            self._log(
+                                f"    ?? ???? ???(??): {filtered_codes}? ????? ??? "
+                                f"(??: {original_codes}? ????, ??: {original_combinations}??{filtered_combinations}?)"
+                            )
+
+            season_info = None
+            if season_filter_enabled and hasattr(db_handler, '_last_season_filter_info'):
+                season_info = db_handler._last_season_filter_info
+
+            if season_info:
+                update_store_season_stats(store_season_stats, season_info)
+
+            if season_filter_enabled:
+                log_category_season_result(
+                    log_fn=self._log,
+                    category=category,
+                    season_info=season_info,
+                    products_count=len(products),
+                    season_config_for_log=season_config_for_log,
+                    check_season_validity=check_season_validity,
+                )
+
+            if products:
+                available_combinations_by_category[category] = products
+                for product in products:
+                    product_code = product.get("??????", "")
+                    if not product_code:
+                        continue
+                    if product_code not in all_products_by_code:
+                        all_products_by_code[product_code] = []
+                    all_products_by_code[product_code].append(product)
+
+        return available_combinations_by_category, all_products_by_code, store_season_stats, season_filter_enabled
+
     def _check_category_duplicates(self, sheet_name: str, owner: str, store_key: str, selected_categories: List[str]) -> List[Dict[str, Any]]:
         """같은 명의자 내 다른 스토어와 카테고리 중복 체크"""
         duplicates = []
@@ -5790,108 +5897,20 @@ class MainWindow(tk.Tk):
                         self._log(f"  📊 스토어 '{market_name}' (별칭: {alias}): 스토어별 수량 제한 {total_quantity_limit}개 적용")
                     
                     # 해당 스토어에서 사용 가능한 조합 조회 (스토어별로 business_number로 필터링)
-                    available_combinations_by_category = {}
-                    all_products_by_code = {}  # {product_code: [product1, product2, ...]} - 우선순위 순서
-                    
-                    # 스토어별 사용 상품코드 캐시(필요한 경우만) 조회
-                    store_used_product_codes_cache = set()
-                    if exclude_assigned:
-                        if business_number not in store_used_product_codes_cache_map:
-                            store_used_product_codes_cache_map[business_number] = self._build_store_used_product_codes_cache(
-                                db_handler, sheet_name, business_number
-                            )
-                        store_used_product_codes_cache = store_used_product_codes_cache_map.get(business_number, set())
-                    
-                    # 시즌 필터링 활성화 여부 가져오기 (스토어별로 동일)
-                    season_filter_enabled = getattr(self, 'season_filter_var', tk.BooleanVar(value=True)).get() if export_mode == "upload" else False
-                    season_config_for_log = None
-                    check_season_validity = None
-                    if season_filter_enabled:
-                        try:
-                            from season_filter_manager_gui import load_season_config, _check_season_validity
-                            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                            excel_path = os.path.join(script_dir, "Season_Filter_Seasons_Keywords.xlsx")
-                            json_path = os.path.join(script_dir, "season_filters.json")
-                            season_config_for_log = load_season_config(excel_path, json_path)
-                            check_season_validity = _check_season_validity
-                        except Exception:
-                            season_config_for_log = None
-                            check_season_validity = None
-                    
-                    # 스토어별 시즌 필터링 통계 수집 (요약 로그용)
-                    store_season_stats = {
-                        'total_categories': len(store_categories),
-                        'total_products_before': 0,
-                        'total_products_after': 0,
-                        'total_combinations': 0,
-                        'season_excluded_count': 0,
-                        'included_seasons': {},
-                        'excluded_seasons': {}
-                    }
-                    
-                    for category in store_categories:
-                        # 스토어별로 사용 가능한 조합 조회 (business_number로 필터링하여 스토어별로 독립적으로 관리)
-                        # 캐시된 데이터를 전달하여 중복 조회 방지 (성능 최적화)
-                        # 상품코드 필터링도 내부에서 처리하여 성능 최적화 (시즌 필터링 전에 적용)
-                        products = db_handler.get_products_for_upload(
-                            category, sheet_name, business_number, 
-                            exclude_assigned=exclude_assigned,
-                            season_filter_enabled=season_filter_enabled,
-                            sheet_used_combinations=sheet_used_combinations_cache,
-                            store_used_product_codes=store_used_product_codes_cache if exclude_assigned else None,
-                            product_code_filter_mode=product_code_filter_mode,
-                            product_code_filter_codes=product_code_filter_codes
-                        )
-                        
-                        # 상품코드 필터링 결과 로그 출력 (db_handler 내부에서 필터링 완료)
-                        if product_code_filter_mode != "none" and product_code_filter_codes:
-                            if hasattr(db_handler, '_last_product_code_filter_info') and db_handler._last_product_code_filter_info:
-                                filter_info = db_handler._last_product_code_filter_info.get(category)
-                                if filter_info:
-                                    mode = filter_info.get('mode')
-                                    original_codes = filter_info.get('original_product_codes_count', 0)
-                                    filtered_codes = filter_info.get('filtered_product_codes_count', 0)
-                                    excluded_codes = filter_info.get('excluded_codes_count', 0)
-                                    original_combinations = filter_info.get('original_count', 0)
-                                    filtered_combinations = filter_info.get('filtered_count', 0)
-                                    
-                                    if mode == "exclude" and excluded_codes > 0:
-                                        self._log(f"    🔍 상품코드 필터링 (제외): {excluded_codes}개 상품코드 제외됨 (상품코드: {original_codes}개 → {filtered_codes}개, 조합: {original_combinations}개 → {filtered_combinations}개)")
-                                    elif mode == "include" and filtered_codes > 0:
-                                        self._log(f"    🔍 상품코드 필터링 (포함): {filtered_codes}개 상품코드만 포함됨 (원본: {original_codes}개 상품코드, 조합: {original_combinations}개 → {filtered_combinations}개)")
-                        
-                        # 시즌 필터링 통계 수집
-                        season_info = None
-                        if season_filter_enabled and hasattr(db_handler, '_last_season_filter_info'):
-                            season_info = db_handler._last_season_filter_info
+                    # ??? ????? ??/?? ??
+                    available_combinations_by_category, all_products_by_code, store_season_stats, season_filter_enabled = self._collect_store_category_combinations(
+                        db_handler=db_handler,
+                        sheet_name=sheet_name,
+                        business_number=business_number,
+                        store_categories=store_categories,
+                        exclude_assigned=exclude_assigned,
+                        product_code_filter_mode=product_code_filter_mode,
+                        product_code_filter_codes=product_code_filter_codes,
+                        export_mode=export_mode,
+                        sheet_used_combinations_cache=sheet_used_combinations_cache,
+                        store_used_product_codes_cache=store_used_product_codes_cache,
+                    )
 
-                        if season_info:
-                            update_store_season_stats(store_season_stats, season_info)
-
-                        if season_filter_enabled:
-                            log_category_season_result(
-                                log_fn=self._log,
-                                category=category,
-                                season_info=season_info,
-                                products_count=len(products),
-                                season_config_for_log=season_config_for_log,
-                                check_season_validity=check_season_validity,
-                            )
-
-                        if products:
-                            available_combinations_by_category[category] = products
-                            
-                            # 상품코드별로 그룹화
-                            for product in products:
-                                product_code = product.get("상품코드", "")
-                                if not product_code:
-                                    continue
-                                
-                                if product_code not in all_products_by_code:
-                                    all_products_by_code[product_code] = []
-                                all_products_by_code[product_code].append(product)
-                    
-                    # 사용 가능한 조합이 없으면 해당 스토어 스킵
                     if not all_products_by_code:
                         self._log(f"  ⚠️ 스토어 '{market_name}' (별칭: {alias}): 사용 가능한 조합 없음")
                         continue
