@@ -2373,6 +2373,41 @@ class MainWindow(tk.Tk):
 
         return sorted(all_products_by_code.keys())
 
+    def _select_available_combination_for_product(
+        self,
+        product_code: str,
+        available_combos: List[Dict[str, Any]],
+        global_used_combinations: set,
+        exclude_assigned: bool,
+        store_used_combinations: set,
+    ) -> Optional[Dict[str, Any]]:
+        """중복 조건을 만족하는 첫 번째 사용 가능 조합을 반환한다."""
+        for combo in available_combos:
+            combo_url_type = combo.get("url_type", "mix")
+            combo_line_index = combo.get("line_index", 0)
+            combo_final_name = combo.get("ST4_최종결과", "") or ""
+            combo_nukki_url = combo.get("누끼url", "") or ""
+            combo_mix_url = combo.get("믹스url", "") or ""
+
+            if combo_url_type == "mix":
+                combo_used_url = combo_mix_url
+            elif combo_url_type == "nukki":
+                combo_used_url = combo_nukki_url
+            else:
+                combo_used_url = ""
+
+            combo_key = (product_code, combo_url_type, combo_line_index, combo_final_name, combo_used_url)
+            if global_used_combinations and combo_key in global_used_combinations:
+                continue
+
+            if not exclude_assigned and store_used_combinations:
+                store_combo_key = (product_code, combo_url_type, combo_final_name, combo_used_url)
+                if store_combo_key in store_used_combinations:
+                    continue
+
+            return combo
+        return None
+
     def _check_category_duplicates(self, sheet_name: str, owner: str, store_key: str, selected_categories: List[str]) -> List[Dict[str, Any]]:
         """같은 명의자 내 다른 스토어와 카테고리 중복 체크"""
         duplicates = []
@@ -6069,37 +6104,13 @@ class MainWindow(tk.Tk):
                         # get_next_combination_for_store 호출 제거 → DB 쿼리 대폭 감소
                         available_combos = all_products_by_code.get(product_code, [])
 
-                        # 사용 가능한 조합 선택 (global_used_combinations 체크)
-                        found_product = None
-                        for combo in available_combos:
-                            combo_url_type = combo.get("url_type", "mix")
-                            combo_line_index = combo.get("line_index", 0)
-                            combo_final_name = combo.get("ST4_최종결과", "") or ""
-                            combo_nukki_url = combo.get("누끼url", "") or ""
-                            combo_mix_url = combo.get("믹스url", "") or ""
-
-                            # URL 결정
-                            if combo_url_type == "mix":
-                                combo_used_url = combo_mix_url
-                            elif combo_url_type == "nukki":
-                                combo_used_url = combo_nukki_url
-                            else:
-                                combo_used_url = ""
-
-                            # 전체 시트 중복 체크
-                            combo_key = (product_code, combo_url_type, combo_line_index, combo_final_name, combo_used_url)
-                            if global_used_combinations and combo_key in global_used_combinations:
-                                continue
-
-                            # 스토어 중복 체크 (exclude_assigned=False일 때)
-                            if not exclude_assigned and store_used_combinations:
-                                store_combo_key = (product_code, combo_url_type, combo_final_name, combo_used_url)
-                                if store_combo_key in store_used_combinations:
-                                    continue
-
-                            # 사용 가능한 조합 발견
-                            found_product = combo
-                            break
+                        found_product = self._select_available_combination_for_product(
+                            product_code=product_code,
+                            available_combos=available_combos,
+                            global_used_combinations=global_used_combinations,
+                            exclude_assigned=exclude_assigned,
+                            store_used_combinations=store_used_combinations,
+                        )
 
                         # 사용 가능한 조합이 없으면 스킵
                         if not found_product:
