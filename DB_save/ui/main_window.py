@@ -29,7 +29,9 @@ from database.db_handler import DBHandler
 from ui.export_helpers import (
     build_sheet_used_combinations_cache,
     build_store_used_product_codes_cache,
+    log_category_season_result,
     normalize_store_categories,
+    update_store_season_stats,
 )
 from config import (
     AccountLoader, DEFAULT_DB_PATH, DEFAULT_EXCEL_ACCOUNTS_PATH,
@@ -5859,92 +5861,23 @@ class MainWindow(tk.Tk):
                                         self._log(f"    🔍 상품코드 필터링 (포함): {filtered_codes}개 상품코드만 포함됨 (원본: {original_codes}개 상품코드, 조합: {original_combinations}개 → {filtered_combinations}개)")
                         
                         # 시즌 필터링 통계 수집
-                        if season_filter_enabled and hasattr(db_handler, '_last_season_filter_info') and db_handler._last_season_filter_info:
+                        season_info = None
+                        if season_filter_enabled and hasattr(db_handler, '_last_season_filter_info'):
                             season_info = db_handler._last_season_filter_info
-                            if 'error' not in season_info:
-                                store_season_stats['total_products_before'] += season_info.get('original_count', 0)
-                                store_season_stats['total_products_after'] += season_info.get('filtered_count', 0)
-                                store_season_stats['season_excluded_count'] += season_info.get('excluded_count', 0)
-                                
-                                # 포함된 시즌 통계
-                                included = season_info.get('included_seasons', {})
-                                for season_id, info in included.items():
-                                    season_name = info.get('name', season_id)
-                                    if season_name not in store_season_stats['included_seasons']:
-                                        store_season_stats['included_seasons'][season_name] = 0
-                                    store_season_stats['included_seasons'][season_name] += info.get('count', 0)
-                                
-                                # 제외된 시즌 통계
-                                excluded = season_info.get('excluded_seasons', {})
-                                for season_id, info in excluded.items():
-                                    season_name = info.get('name', season_id)
-                                    if season_name not in store_season_stats['excluded_seasons']:
-                                        store_season_stats['excluded_seasons'][season_name] = 0
-                                    store_season_stats['excluded_seasons'][season_name] += info.get('count', 0)
-                        
-                        store_season_stats['total_combinations'] += len(products)
-                        
-                        # 시즌 필터링 결과 로그 출력
+
+                        if season_info:
+                            update_store_season_stats(store_season_stats, season_info)
+
                         if season_filter_enabled:
-                            if hasattr(db_handler, '_last_season_filter_info') and db_handler._last_season_filter_info:
-                                season_info = db_handler._last_season_filter_info
-                                
-                                # 오류 정보가 있는 경우
-                                if 'error' in season_info:
-                                    self._log(f"    ⚠️ 카테고리 '{category}' 시즌 필터링: {season_info.get('error')}")
-                                else:
-                                    stats = season_info.get('season_stats', {})
-                                    included = season_info.get('included_seasons', {})
-                                    excluded = season_info.get('excluded_seasons', {})
-                                    
-                                    # 기본 통계
-                                    total_before = season_info.get('original_count', len(products) + season_info.get('excluded_count', 0))
-                                    total_after = season_info.get('filtered_count', len(products))
-                                    actual_returned = len(products)  # 실제 반환된 조합 수
-                                    
-                                    self._log(f"    📊 카테고리 '{category}' 시즌 필터링 결과:")
-                                    self._log(f"      - 전체 상품 코드: {total_before}개")
-                                    self._log(f"      - 일반 상품: {stats.get('non_season', 0)}개")
-                                    self._log(f"      - 시즌 상품 (포함): {stats.get('season_valid', 0)}개")
-                                    self._log(f"      - 시즌 지난 상품 (제외): {stats.get('season_invalid', 0)}개")
-                                    self._log(f"      - 필터링 후 상품 코드: {total_after}개 → 조합 {actual_returned}개 생성")
-                                    
-                                    # 포함된 시즌 정보 (ACTIVE만 표시)
-                                    if included:
-                                        if season_config_for_log and check_season_validity:
-                                            active_included = []
-                                            for season_id, info in included.items():
-                                                season = next(
-                                                    (s for s in season_config_for_log.get("seasons", []) if s.get("id") == season_id),
-                                                    None
-                                                )
-                                                if season:
-                                                    status = check_season_validity(season, datetime.now(), season_config_for_log)
-                                                    if status == 'ACTIVE':
-                                                        active_included.append((season_id, info))
-                                            if active_included:
-                                                self._log(f"      ? ??? ?? (?? ??):")
-                                                for season_id, info in active_included:
-                                                    self._log(f"        - {info.get('name', season_id)}: {info.get('count', 0)}?")
-                                        else:
-                                            self._log(f"      ? ??? ??:")
-                                            for season_id, info in included.items():
-                                                self._log(f"        - {info.get('name', season_id)}: {info.get('count', 0)}?")
-                                    
-                                    # 제외된 시즌 정보 (SOURCING + EXPIRED)
-                                    if excluded:
-                                        self._log(f"      ❌ 제외된 시즌:")
-                                        for season_id, info in excluded.items():
-                                            reason = info.get('reason', '시즌 기간 외')
-                                            name = info.get('name', season_id)
-                                            count = info.get('count', 0)
-                                            # "시즌명 - 사유 - 개수" 형식으로 표시
-                                            reason_clean = reason.replace(f"{name}(", "").replace(")", "").strip()
-                                            self._log(f"        - {name} - {reason_clean} - {count}개")
-                            else:
-                                # 시즌 필터링 정보가 없는 경우
-                                self._log(f"    ⚠️ 카테고리 '{category}' 시즌 필터링 정보 없음 (상품 조회 실패 또는 시즌 설정 미적용)")
-                        
+                            log_category_season_result(
+                                log_fn=self._log,
+                                category=category,
+                                season_info=season_info,
+                                products_count=len(products),
+                                season_config_for_log=season_config_for_log,
+                                check_season_validity=check_season_validity,
+                            )
+
                         if products:
                             available_combinations_by_category[category] = products
                             
