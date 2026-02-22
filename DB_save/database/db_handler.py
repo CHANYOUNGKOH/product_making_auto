@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 
 import pandas as pd
+from database.upload_combination_query import fetch_available_combinations_by_codes
 
 # 시즌 필터링 통합
 # season_filter_manager_gui.py에서 함수 import
@@ -741,274 +742,42 @@ class DBHandler:
                 )
         
         # 5. 각 상품코드별로 사용 가능한 조합 조회 (필터링된 상품코드만 사용)
+        unique_product_codes = list(dict.fromkeys(product_codes))
+        if exclude_assigned and store_used_product_codes:
+            unique_product_codes = [
+                code for code in unique_product_codes
+                if code not in store_used_product_codes
+            ]
+        
+        if not unique_product_codes:
+            return []
+        
         result = []
-        for product_code in product_codes:
-            # exclude_assigned가 True이고 해당 스토어에서 이미 사용한 상품코드면 제외
-            if exclude_assigned and product_code in store_used_product_codes:
-                continue
-            
-            # 사용 가능한 조합 조회 (시트 전체에서 사용되지 않은 조합)
-            used_indices = sheet_used_combinations.get(product_code, set())
-            
-            # 성능 최적화: 필요한 만큼만 조회 (LIMIT 사용)
-            # 실제로는 첫 번째 사용 가능한 조합만 필요하지만, 
-            # 여러 조합을 미리 로드하여 선택의 여지 확보
-            fetch_limit = 100  # 최대 100개 조합만 조회 (대용량 데이터 처리 성능 향상)
-            
-            if used_indices:
-                # 사용된 인덱스가 많을 경우 성능 저하 방지
-                if len(used_indices) > 1000:
-                    # 너무 많은 경우 EXISTS 서브쿼리 사용
-                    cursor.execute("""
-                        SELECT * FROM product_combinations 
-                        WHERE product_code = ? 
-                        AND NOT EXISTS (
-                            SELECT 1 FROM combination_assignments ca
-                            WHERE ca.sheet_name = ?
-                            AND ca.product_code = product_combinations.product_code
-                            AND ca.combination_index = product_combinations.combination_index
-                        )
-                        ORDER BY combination_index ASC
-                        LIMIT ?
-                    """, (product_code, sheet_name, fetch_limit))
-                else:
-                    placeholders = ','.join('?' * len(used_indices))
-                    cursor.execute(f"""
-                        SELECT * FROM product_combinations 
-                        WHERE product_code = ? 
-                        AND combination_index NOT IN ({placeholders})
-                        ORDER BY combination_index ASC
-                        LIMIT ?
-                    """, [product_code] + list(used_indices) + [fetch_limit])
-            else:
-                cursor.execute("""
-                    SELECT * FROM product_combinations 
-                    WHERE product_code = ? 
-                    ORDER BY combination_index ASC
-                    LIMIT ?
-                """, (product_code, fetch_limit))
-            
-            for row in cursor.fetchall():
-                combo = dict(row)
-                # 반환 형식 통일 (기존 형식과 호환)
-                result.append({
-                    "상품코드": combo.get("product_code", ""),
-                    "누끼url": combo.get("nukki_url", "") or "",
-                    "믹스url": combo.get("mix_url", "") or "",
-                    "ST4_최종결과": combo.get("product_name", ""),
-                    "product_id": combo.get("product_id"),
-                    "product_names_json": "",  # 조합 테이블에는 저장 안 함
-                    "ST2_JSON": combo.get("st2_json", "") or "",
-                    "url_type": combo.get("url_type", "mix"),
-                    "line_index": combo.get("line_index", 0),
-                    "combination_index": combo.get("combination_index", 0)  # 새로 추가
-                })
+
+        rows = fetch_available_combinations_by_codes(
+            cursor=cursor,
+            product_codes=unique_product_codes,
+            sheet_name=sheet_name,
+            fetch_limit=100,
+            chunk_size=300,
+        )
+
+        for row in rows:
+            combo = dict(row)
+            result.append({
+                "?곹뭹肄붾뱶": combo.get("product_code", ""),
+                "?꾨겮url": combo.get("nukki_url", "") or "",
+                "誘뱀뒪url": combo.get("mix_url", "") or "",
+                "ST4_理쒖쥌寃곌낵": combo.get("product_name", ""),
+                "product_id": combo.get("product_id"),
+                "product_names_json": "",
+                "ST2_JSON": combo.get("st2_json", "") or "",
+                "url_type": combo.get("url_type", "mix"),
+                "line_index": combo.get("line_index", 0),
+                "combination_index": combo.get("combination_index", 0)
+            })
         
         return result
-    
-    def get_next_combination_for_store(
-        self, 
-        product_code: str, 
-        sheet_name: str, 
-        business_number: str,
-        exclude_assigned: bool = False,
-        global_used_combinations: set = None,
-        store_used_combinations: set = None
-    ) -> Optional[Dict]:
-        """
-        스토어별 다음 조합 반환 (순환식)
-        
-        순서:
-        1. 스토어별 마지막 사용 인덱스 조회
-        2. 해당 인덱스 이후의 조합 조회 (순환을 위해 이전 조합도 포함)
-        3. URL 타입별로 번갈아가면서 제공 (누끼/믹스)
-        4. 상품명 순차적으로 제공
-        5. 마지막까지 가면 처음부터 다시
-        
-        Args:
-            product_code: 상품코드
-            sheet_name: 시트명 (마켓 타입)
-            business_number: 사업자번호
-            exclude_assigned: 이미 배정된 상품코드 제외 여부
-            global_used_combinations: 전체 시트에서 사용된 조합 (중복 방지용)
-            store_used_combinations: 스토어별 사용된 조합 (exclude_assigned=False일 때)
-            
-        Returns:
-            다음 조합 정보 (Dict) 또는 None (사용 가능한 조합 없음)
-        """
-        cursor = self.conn.cursor()
-        
-        try:
-            # 1. 스토어별 마지막 사용 상태 조회
-            cursor.execute("""
-                SELECT last_used_combination_index, last_used_url_type
-                FROM store_combination_state
-                WHERE sheet_name = ? AND business_number = ? AND product_code = ?
-            """, (sheet_name, business_number, product_code))
-            
-            row = cursor.fetchone()
-            if row:
-                last_index = row[0] if row[0] is not None else -1
-                last_url_type = row[1] or 'mix'
-            else:
-                last_index = -1
-                last_url_type = 'mix'
-            
-            # 2. 조합 인덱스 검증 (최대 인덱스 확인)
-            cursor.execute("""
-                SELECT MAX(combination_index) as max_index
-                FROM product_combinations
-                WHERE product_code = ?
-            """, (product_code,))
-            
-            max_index_row = cursor.fetchone()
-            max_index = max_index_row[0] if max_index_row and max_index_row[0] is not None else -1
-            
-            # 3. 존재하지 않는 인덱스를 가리키면 0부터 시작
-            if last_index > max_index:
-                start_index = 0
-                last_url_type = 'mix'  # 리셋
-            else:
-                start_index = last_index + 1
-            
-            # 4. 조합 조회 (순환식)
-            # 4-1. start_index 이후의 모든 조합 조회
-            cursor.execute("""
-                SELECT * FROM product_combinations
-                WHERE product_code = ?
-                AND combination_index >= ?
-                ORDER BY combination_index ASC
-            """, (product_code, start_index))
-            
-            candidates = [dict(row) for row in cursor.fetchall()]
-            
-            # 4-2. start_index 이전 조합도 조회 (순환을 위해)
-            if max_index >= 0 and (not candidates or len(candidates) == 0):
-                cursor.execute("""
-                    SELECT * FROM product_combinations
-                    WHERE product_code = ?
-                    AND combination_index < ?
-                    ORDER BY combination_index ASC
-                """, (product_code, start_index))
-                candidates.extend([dict(row) for row in cursor.fetchall()])
-            
-            if not candidates:
-                return None  # 조합이 없음
-            
-            # 5. URL 타입별 필터링 및 순환
-            # 누끼/믹스 번갈아가면서 제공
-            url_type_priority = ['nukki', 'mix'] if last_url_type == 'mix' else ['mix', 'nukki']
-            
-            # 5-1. 유효한 조합 필터링
-            # URL이 있는 조합(누끼/믹스)과 name_only 모두 포함
-            # 단, url_type이 'nukki'인데 nukki_url이 없거나, 'mix'인데 mix_url이 없는 경우는 제외
-            valid_combinations = []
-            has_url_combinations = False  # URL이 있는 조합이 있는지 확인
-            
-            for combo in candidates:
-                url_type = combo.get('url_type', 'mix')
-                nukki_url = combo.get('nukki_url', '') or ''
-                mix_url = combo.get('mix_url', '') or ''
-                
-                # URL 타입별 검증
-                if url_type == 'nukki':
-                    if not nukki_url:
-                        continue  # nukki 타입인데 URL이 없으면 제외
-                    has_url_combinations = True
-                elif url_type == 'mix':
-                    if not mix_url:
-                        continue  # mix 타입인데 URL이 없으면 제외
-                    has_url_combinations = True
-                # name_only는 항상 포함 (URL 없이 상품명만)
-                
-                valid_combinations.append(combo)
-            
-            if not valid_combinations:
-                return None  # 사용 가능한 조합이 없음
-            
-            # name_only만 있고 URL이 있는 조합이 없는 경우도 처리
-            # (기존 방식과 동일하게 name_only도 순차적으로 제공)
-            
-            # 5-2. URL 타입 우선순위로 정렬
-            def get_url_type_priority(combo):
-                url_type = combo.get('url_type', 'mix')
-                if url_type in url_type_priority:
-                    return url_type_priority.index(url_type)
-                return 999  # name_only 등은 뒤로
-            
-            valid_combinations.sort(key=lambda x: (get_url_type_priority(x), x.get('combination_index', 0)))
-            
-            # 6. 전체 시트 동일 조합 추적 체크
-            # 7. 스토어별 조합 체크 (exclude_assigned=False일 때)
-            selected = None
-            for combo in valid_combinations:
-                combo_idx = combo.get('combination_index', 0)
-                url_type = combo.get('url_type', 'mix')
-                line_index = combo.get('line_index', 0)
-                final_name = combo.get('product_name', '') or ''
-                nukki_url = combo.get('nukki_url', '') or ''
-                mix_url = combo.get('mix_url', '') or ''
-                
-                # URL 타입에 따라 사용할 URL 결정
-                if url_type == "mix":
-                    used_url = mix_url
-                elif url_type == "nukki":
-                    used_url = nukki_url
-                else:  # "name_only"
-                    used_url = ""
-                
-                # 전체 시트에서 사용된 조합인지 확인
-                combination_key = (product_code, url_type, line_index, final_name, used_url)
-                if global_used_combinations and combination_key in global_used_combinations:
-                    continue  # 이미 전체 시트에서 사용된 조합이면 건너뛰기
-                
-                # exclude_assigned=False일 때, 해당 스토어에서 이미 사용한 조합은 건너뛰기
-                if not exclude_assigned and store_used_combinations:
-                    candidate_combination_key = (product_code, url_type, final_name, used_url)
-                    if candidate_combination_key in store_used_combinations:
-                        continue
-                
-                # 사용 가능한 조합 발견
-                selected = combo
-                break
-            
-            if not selected:
-                return None  # 사용 가능한 조합 없음
-            
-            # 8. 상태 업데이트 (트랜잭션은 호출부에서 처리)
-            cursor.execute("""
-                INSERT OR REPLACE INTO store_combination_state
-                (sheet_name, business_number, product_code, 
-                 last_used_combination_index, last_used_url_type, 
-                 last_used_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, (
-                sheet_name, 
-                business_number, 
-                product_code,
-                selected.get('combination_index', 0),
-                selected.get('url_type', 'mix')
-            ))
-            
-            # 9. 반환 형식 통일 (기존 형식과 호환)
-            return {
-                "상품코드": selected.get("product_code", ""),
-                "누끼url": selected.get("nukki_url", "") or "",
-                "믹스url": selected.get("mix_url", "") or "",
-                "ST4_최종결과": selected.get("product_name", ""),
-                "product_id": selected.get("product_id"),
-                "product_names_json": "",  # 조합 테이블에는 저장 안 함
-                "ST2_JSON": selected.get("st2_json", "") or "",
-                "url_type": selected.get("url_type", "mix"),
-                "line_index": selected.get("line_index", 0),
-                "combination_index": selected.get("combination_index", 0)
-            }
-            
-        except Exception as e:
-            import traceback
-            print(f"⚠️ get_next_combination_for_store 오류: {e}")
-            traceback.print_exc()
-            return None
     
     def get_incomplete_products(self, category: str = None, status: str = 'ACTIVE') -> List[Dict]:
         """
