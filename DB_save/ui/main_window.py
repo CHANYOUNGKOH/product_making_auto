@@ -2276,6 +2276,103 @@ class MainWindow(tk.Tk):
 
         return available_combinations_by_category, all_products_by_code, store_season_stats, season_filter_enabled
 
+    def _load_store_used_combinations(
+        self,
+        db_handler: DBHandler,
+        sheet_name: str,
+        business_number: str,
+    ) -> set:
+        """스토어에서 이미 사용된 조합 키를 로드한다 (exclude_assigned=False 전용)."""
+        store_used_combinations = set()
+        try:
+            cursor = db_handler.conn.cursor()
+
+            # 1) combination_assignments 기반 (정확한 combination_index 조합)
+            cursor.execute(
+                """
+                SELECT ca.product_code, ca.combination_index,
+                       pc.url_type, pc.product_name, pc.nukki_url, pc.mix_url
+                FROM combination_assignments ca
+                JOIN product_combinations pc
+                ON ca.product_code = pc.product_code
+                AND ca.combination_index = pc.combination_index
+                WHERE ca.sheet_name = ?
+                AND ca.business_number = ?
+                """,
+                (sheet_name, business_number),
+            )
+
+            for row in cursor.fetchall():
+                used_pc, _combo_idx, url_type, used_name, used_nukki, used_mix = row
+                if not used_pc:
+                    continue
+                if url_type == "nukki" and used_nukki:
+                    store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
+                elif url_type == "mix" and used_mix:
+                    store_used_combinations.add((used_pc, "mix", used_name, used_mix))
+                elif url_type == "name_only":
+                    store_used_combinations.add((used_pc, "name_only", used_name, ""))
+
+            # 2) upload_logs 기반 (하위 호환성)
+            cursor.execute(
+                """
+                SELECT DISTINCT product_code, used_nukki_url, used_mix_url, used_product_name
+                FROM upload_logs
+                WHERE market_name = ?
+                AND business_number = ?
+                AND upload_status = 'SUCCESS'
+                AND product_code IS NOT NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM combination_assignments ca
+                    WHERE ca.sheet_name = upload_logs.market_name
+                    AND ca.business_number = upload_logs.business_number
+                    AND ca.product_code = upload_logs.product_code
+                )
+                """,
+                (sheet_name, business_number),
+            )
+
+            for row in cursor.fetchall():
+                used_pc, used_nukki, used_mix, used_name = row
+                if not used_pc:
+                    continue
+                if used_nukki:
+                    store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
+                if used_mix:
+                    store_used_combinations.add((used_pc, "mix", used_name, used_mix))
+        except Exception as e:
+            self._log(f"    ⚠️ 스토어 조합 조회 실패: {e}")
+        return store_used_combinations
+
+    def _build_product_codes_list(
+        self,
+        all_products_by_code: Dict[str, List[Dict[str, Any]]],
+        exclude_assigned: bool,
+        total_quantity_limit: Optional[int],
+        global_used_combinations_db: set,
+    ) -> List[str]:
+        """상품코드 처리 순서를 생성한다 (필요 시 미출고 우선)."""
+        if exclude_assigned and total_quantity_limit is not None:
+            try:
+                exported_product_codes = {combo[0] for combo in global_used_combinations_db if combo[0]}
+                unexported_codes = []
+                exported_codes = []
+                for product_code in all_products_by_code.keys():
+                    if product_code in exported_product_codes:
+                        exported_codes.append(product_code)
+                    else:
+                        unexported_codes.append(product_code)
+
+                product_codes_list = sorted(unexported_codes) + sorted(exported_codes)
+                if unexported_codes:
+                    self._log(f"    📋 우선순위 적용: 출고된 적 없는 상품코드 {len(unexported_codes)}개를 먼저 처리")
+                return product_codes_list
+            except Exception as e:
+                self._log(f"    ⚠️ 출고 이력 조회 실패, 기본 정렬 사용: {e}")
+                return sorted(all_products_by_code.keys())
+
+        return sorted(all_products_by_code.keys())
+
     def _check_category_duplicates(self, sheet_name: str, owner: str, store_key: str, selected_categories: List[str]) -> List[Dict[str, Any]]:
         """같은 명의자 내 다른 스토어와 카테고리 중복 체크"""
         duplicates = []
@@ -5931,89 +6028,19 @@ class MainWindow(tk.Tk):
                     # exclude_assigned=False일 때, 해당 스토어에서 이미 사용한 조합 확인
                     # 새로운 combination_assignments 테이블과 upload_logs 모두 확인
                     if not exclude_assigned:
-                        try:
-                            cursor = db_handler.conn.cursor()
-                            
-                            # 1. combination_assignments에서 조합 인덱스 확인
-                            cursor.execute("""
-                                SELECT ca.product_code, ca.combination_index, 
-                                       pc.url_type, pc.product_name, pc.nukki_url, pc.mix_url
-                                FROM combination_assignments ca
-                                JOIN product_combinations pc 
-                                ON ca.product_code = pc.product_code 
-                                AND ca.combination_index = pc.combination_index
-                                WHERE ca.sheet_name = ? 
-                                AND ca.business_number = ?
-                            """, (sheet_name, business_number))
-                            
-                            for row in cursor.fetchall():
-                                used_pc, combo_idx, url_type, used_name, used_nukki, used_mix = row
-                                if used_pc:
-                                    # 조합 키 생성
-                                    if url_type == "nukki" and used_nukki:
-                                        store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
-                                    elif url_type == "mix" and used_mix:
-                                        store_used_combinations.add((used_pc, "mix", used_name, used_mix))
-                                    elif url_type == "name_only":
-                                        store_used_combinations.add((used_pc, "name_only", used_name, ""))
-                            
-                            # 2. upload_logs에서도 확인 (하위 호환성)
-                            cursor.execute("""
-                                SELECT DISTINCT product_code, used_nukki_url, used_mix_url, used_product_name
-                                FROM upload_logs 
-                                WHERE market_name = ? 
-                                AND business_number = ?
-                                AND upload_status = 'SUCCESS'
-                                AND product_code IS NOT NULL
-                                AND NOT EXISTS (
-                                    SELECT 1 FROM combination_assignments ca
-                                    WHERE ca.sheet_name = upload_logs.market_name
-                                    AND ca.business_number = upload_logs.business_number
-                                    AND ca.product_code = upload_logs.product_code
-                                )
-                            """, (sheet_name, business_number))
-                            
-                            for row in cursor.fetchall():
-                                used_pc, used_nukki, used_mix, used_name = row
-                                if used_pc:
-                                    # 조합 키 생성 (상품코드, url_type, line_index는 정확히 알 수 없으므로 URL과 상품명으로만 판단)
-                                    if used_nukki:
-                                        store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
-                                    if used_mix:
-                                        store_used_combinations.add((used_pc, "mix", used_name, used_mix))
-                        except Exception as e:
-                            self._log(f"    ⚠️ 스토어 조합 조회 실패: {e}")
+                        store_used_combinations = self._load_store_used_combinations(
+                            db_handler=db_handler,
+                            sheet_name=sheet_name,
+                            business_number=business_number,
+                        )
                     
                     # 상품코드 중심으로 처리 (카테고리 순서가 아닌 상품코드 순서로)
-                    # 우선순위: 출력 상품수 제한이 있으면 우선적으로 출고된 적 없는 상품코드 먼저
-                    # exclude_assigned=True일 때만 우선순위 적용 (출고된 적 없는 상품코드 먼저)
-                    if exclude_assigned and total_quantity_limit is not None:
-                        # 출고된 적 없는 상품코드와 출고된 적 있는 상품코드 분리
-                        unexported_codes = []
-                        exported_codes = []
-                        
-                        # 출고 이력 확인 (전체 시트에서 확인 - global_used_combinations 기준)
-                        # global_used_combinations_db에 있는 상품코드는 이미 출고된 것으로 간주
-                        try:
-                            # global_used_combinations_db에서 상품코드 추출
-                            exported_product_codes = {combo[0] for combo in global_used_combinations_db if combo[0]}
-                            
-                            for product_code in all_products_by_code.keys():
-                                if product_code in exported_product_codes:
-                                    exported_codes.append(product_code)
-                                else:
-                                    unexported_codes.append(product_code)
-                            
-                            # 출고된 적 없는 상품코드를 먼저, 그 다음 출고된 적 있는 상품코드
-                            product_codes_list = sorted(unexported_codes) + sorted(exported_codes)
-                            if unexported_codes:
-                                self._log(f"    📋 우선순위 적용: 출고된 적 없는 상품코드 {len(unexported_codes)}개를 먼저 처리")
-                        except Exception as e:
-                            self._log(f"    ⚠️ 출고 이력 조회 실패, 기본 정렬 사용: {e}")
-                            product_codes_list = sorted(all_products_by_code.keys())
-                    else:
-                        # 우선순위 적용 안 함 (기본 정렬)
-                        product_codes_list = sorted(all_products_by_code.keys())  # 상품코드 리스트 (정렬하여 일관성 유지)
+                    product_codes_list = self._build_product_codes_list(
+                        all_products_by_code=all_products_by_code,
+                        exclude_assigned=exclude_assigned,
+                        total_quantity_limit=total_quantity_limit,
+                        global_used_combinations_db=global_used_combinations_db,
+                    )
                     
                     for product_code in product_codes_list:
                         # 등록된 상품수량 필터링 (출력 상품수량 제한 필터 전에 검증)
