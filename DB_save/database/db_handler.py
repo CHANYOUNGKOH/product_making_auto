@@ -269,6 +269,13 @@ class DBHandler:
             CREATE INDEX IF NOT EXISTS idx_upload_logs_market_status 
             ON upload_logs(market_name, upload_status)
         """)
+
+        # 스토어 단위 이력 조회 최적화 (market + business + status + code)
+        # _load_store_used_combinations / 중복 체크 쿼리 가속
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_upload_logs_market_biz_status_code
+            ON upload_logs(market_name, business_number, upload_status, product_code)
+        """)
         
         # upload_logs 상품코드 검색 최적화
         cursor.execute("""
@@ -292,19 +299,7 @@ class DBHandler:
             CREATE INDEX IF NOT EXISTS idx_export_history_sheet 
             ON export_history(sheet_name)
         """)
-        
-        # 상품 조합 테이블 인덱스
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_product_combinations_code 
-            ON product_combinations(product_code, combination_index)
-        """)
-        
-        # 조합 할당 테이블 인덱스
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_combination_assignments_sheet_store 
-            ON combination_assignments(sheet_name, business_number, product_code)
-        """)
-        
+
         self.conn.commit()
     
     def insert_market(self, market_data: Dict[str, Any]) -> int:
