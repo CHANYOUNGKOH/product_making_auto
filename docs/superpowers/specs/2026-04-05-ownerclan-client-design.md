@@ -109,7 +109,7 @@ class OwnerclanClient:
 
     # ── 상품 조회 ──
 
-    def get_item(self, key: str, fields: list[str] = None) -> dict:
+    def get_item(self, key: str, fields: str = None) -> dict:
         """
         item(key) — 단건 상세 조회.
         기본 fields: key, name, model, price, fixedPrice, pricePolicy,
@@ -134,7 +134,7 @@ class OwnerclanClient:
         """
 
     def get_items_by_keys(self, keys: list[str],
-                          fields: list[str] = None) -> list[dict]:
+                          fields: str = None) -> list[dict]:
         """
         itemsByKeys — 상품코드 배열로 일괄 조회.
         5000개 초과 시 자동 분할 호출 후 결과 병합.
@@ -286,7 +286,7 @@ def _parse_metadata(self, item: dict) -> dict:
 | `get_items_by_keys` | key, name, price, status, metadata | 모니터링용 — metadata 필수 |
 | `get_item_histories` | itemKey, kind, title, valueBefore, valueAfter, createdAt | 이력 전체 |
 
-`fields` 파라미터로 오버라이드 가능.
+`fields` 파라미터(str)로 오버라이드 가능. GraphQL 필드 문자열을 직접 전달.
 `price` 필드는 항상 `price(currency: KRW)` 형태로 요청.
 
 ---
