@@ -4,18 +4,24 @@
       "commission_rate": 11.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "pending"
     },
     "11번가": {
       "commission_rate": 17.5,
       "commission_base": "pre_discount",
-      "default_discount_rate": 2,
+      "default_discount_rate": 50,
+      "coupon_amount": 120,
+      "reward_rate": 0,
       "status": "registering"
     },
     "옥션": {
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "registering",
       "note": "스토어별 2% 또는 61% 선택 가능"
     },
@@ -23,6 +29,8 @@
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "registering",
       "note": "스토어별 2% 또는 61% 선택 가능"
     },
@@ -30,6 +38,8 @@
       "commission_rate": 6.5,
       "commission_base": "post_discount",
       "default_discount_rate": 50,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "registering",
       "note": "할인율 70% 미만 유지 필요 (노출 제한 위험). 옵션가격이 판매가 연동 → 옵션으로 마진 확보 전략"
     },
@@ -37,48 +47,64 @@
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "카카오톡스토어": {
       "commission_rate": 10.0,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "올웨이즈": {
       "commission_rate": 12.0,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "에이블리": {
       "commission_rate": 18.0,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "토스쇼핑": {
       "commission_rate": 15.0,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "멸치쇼핑": {
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "오늘의집": {
       "commission_rate": 20.0,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "planned"
     },
     "고도몰": {
       "commission_rate": 4.0,
       "commission_base": "post_discount",
       "default_discount_rate": null,
+      "coupon_amount": 0,
+      "reward_rate": 0,
       "status": "pending",
       "note": "할인율 개념 없음. 실결제금액 기준 수수료. 자체쿠폰정책: 가격대별 4단계, 위탁주문가 이상만 쿠폰 발행"
     }

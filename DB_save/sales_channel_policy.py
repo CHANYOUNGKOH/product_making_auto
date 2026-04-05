@@ -175,6 +175,8 @@ def _merge_store_policy(data: dict, store_alias: str) -> dict[str, Any]:
         "discount_rate": discount_rate,
         "shipping_strategy": shipping_strategy,
         "shipping_fee": shipping_fee,
+        "coupon_amount": market.get("coupon_amount", 0),
+        "reward_rate": market.get("reward_rate", 0),
     }
 
 
