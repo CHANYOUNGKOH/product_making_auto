@@ -389,3 +389,34 @@ class OwnerclanClient:
             items = [self._parse_metadata(item) for item in items]
 
         return items
+
+    # ── bulk key lookup ───────────────────────────────────────────────────
+    def get_items_by_keys(self, keys: list[str], fields: str = None,
+                          timeout: int = 60) -> list[dict]:
+        """itemsByKeys — 5000개 초과 시 자동 분할. metadata 자동 파싱."""
+        if fields is None:
+            fields = ITEM_FIELDS_MONITOR
+        if not keys:
+            return []
+
+        all_items = []
+        for i in range(0, len(keys), self.MAX_KEYS_PER_CALL):
+            chunk = keys[i:i + self.MAX_KEYS_PER_CALL]
+            keys_str = ", ".join(f'"{k}"' for k in chunk)
+            query = f'{{ itemsByKeys(keys: [{keys_str}]) {{ {fields} }} }}'
+            result = self._graphql(query, timeout=timeout)
+            if isinstance(result, list):
+                all_items.extend(result)
+            elif result:
+                all_items.append(result)
+
+            if len(keys) > self.MAX_KEYS_PER_CALL:
+                logger.info("Batch %d/%d: %d keys",
+                            i // self.MAX_KEYS_PER_CALL + 1,
+                            (len(keys) - 1) // self.MAX_KEYS_PER_CALL + 1,
+                            len(chunk))
+
+        if "metadata" in (fields or ""):
+            all_items = [self._parse_metadata(item) for item in all_items]
+
+        return all_items
