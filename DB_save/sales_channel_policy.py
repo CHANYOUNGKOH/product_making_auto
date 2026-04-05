@@ -12,7 +12,6 @@ Public API:
 
 import json
 import logging
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -73,16 +72,14 @@ def _validate_store_refs(data: dict) -> None:
     for alias, store in stores.items():
         market_ref = store.get("market")
         if market_ref and market_ref not in markets:
-            warnings.warn(
-                f"Store '{alias}' references unknown market '{market_ref}'",
-                stacklevel=3,
+            logger.warning(
+                "Store '%s' references unknown market '%s'", alias, market_ref
             )
 
         owner_ref = store.get("owner")
         if owner_ref and owner_ref not in owners:
-            warnings.warn(
-                f"Store '{alias}' references unknown owner '{owner_ref}'",
-                stacklevel=3,
+            logger.warning(
+                "Store '%s' references unknown owner '%s'", alias, owner_ref
             )
 
 
@@ -118,29 +115,12 @@ def get_market_policy(
     return dict(markets[market_name])
 
 
-def get_store_policy(
-    store_alias: str, json_path: str | Path | None = None
-) -> dict[str, Any]:
-    """Return merged 3-layer policy for a specific store.
+def _merge_store_policy(data: dict, store_alias: str) -> dict[str, Any]:
+    """Merge 3-layer policy from pre-loaded data (internal helper).
 
-    Merge rules:
-        - commission_rate, commission_base: always from market (no store override)
-        - discount_rate: store value if not null, else market's default_discount_rate
-        - shipping_strategy, shipping_fee: store value if not null, else owner defaults
-
-    Args:
-        store_alias: Store key (e.g. '쿠팡A2-1').
-        json_path: Path to JSON file. None -> DEFAULT_JSON_PATH.
-
-    Returns:
-        dict with keys: store_alias, market, owner, business_code,
-        business_name, store_num, status, commission_rate, commission_base,
-        discount_rate, shipping_strategy, shipping_fee.
-
-    Raises:
-        KeyError: store_alias not found, or referenced market/owner missing.
+    Used by both get_store_policy() and list_active_stores() to avoid
+    redundant JSON re-reads.
     """
-    data = _load_data(json_path)
     stores = data["stores"]
     markets = data["markets"]
     owners = data["owners"]
@@ -198,6 +178,32 @@ def get_store_policy(
     }
 
 
+def get_store_policy(
+    store_alias: str, json_path: str | Path | None = None
+) -> dict[str, Any]:
+    """Return merged 3-layer policy for a specific store.
+
+    Merge rules:
+        - commission_rate, commission_base: always from market (no store override)
+        - discount_rate: store value if not null, else market's default_discount_rate
+        - shipping_strategy, shipping_fee: store value if not null, else owner defaults
+
+    Args:
+        store_alias: Store key (e.g. '쿠팡A2-1').
+        json_path: Path to JSON file. None -> DEFAULT_JSON_PATH.
+
+    Returns:
+        dict with keys: store_alias, market, owner, business_code,
+        business_name, store_num, status, commission_rate, commission_base,
+        discount_rate, shipping_strategy, shipping_fee.
+
+    Raises:
+        KeyError: store_alias not found, or referenced market/owner missing.
+    """
+    data = _load_data(json_path)
+    return _merge_store_policy(data, store_alias)
+
+
 def list_active_stores(
     market: str | None = None, json_path: str | Path | None = None
 ) -> list[dict[str, Any]]:
@@ -221,8 +227,7 @@ def list_active_stores(
         if market is not None and store.get("market") != market:
             continue
         try:
-            policy = get_store_policy(alias, json_path)
-            results.append(policy)
+            results.append(_merge_store_policy(data, alias))
         except KeyError as exc:
             logger.warning("Skipping store '%s': %s", alias, exc)
 
