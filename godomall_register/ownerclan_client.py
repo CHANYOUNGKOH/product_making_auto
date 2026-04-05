@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 # ── URL constants ────────────────────────────────────────────────────────────
 AUTH_URL = "https://auth.ownerclan.com/auth"
 AUTH_SANDBOX_URL = "https://auth.sandbox.ownerclan.com/auth"
-API_URL = "https://api.ownerclan.com/graphql"
-API_SANDBOX_URL = "https://api.sandbox.ownerclan.com/graphql"
+API_URL = "https://api.ownerclan.com/v1/graphql"
+API_SANDBOX_URL = "https://api.sandbox.ownerclan.com/v1/graphql"
 
 # ── GraphQL field-set constants ──────────────────────────────────────────────
 ITEM_FIELDS_FULL = (
@@ -185,3 +185,97 @@ class OwnerclanClient:
         # Token missing or about to expire
         logger.info("Token missing or expiring soon — re-authenticating")
         self.authenticate()
+
+    # ── GraphQL transport ────────────────────────────────────────────────
+    def _graphql(self, query: str, variables: dict | None = None, timeout: int = 30):
+        """Execute a GraphQL query with GET/POST auto-switch and retry.
+
+        Returns the value of the first key in the ``data`` dict.
+        """
+        self._ensure_token()
+
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                # Decide GET vs POST based on URL length
+                encoded_query = urllib.parse.quote(query, safe="")
+                get_url = f"{self.api_url}?query={encoded_query}"
+
+                if len(get_url) > self.POST_THRESHOLD:
+                    # POST with JSON body
+                    body: dict = {"query": query}
+                    if variables:
+                        body["variables"] = variables
+                    resp = self.session.post(
+                        self.api_url, json=body, timeout=timeout
+                    )
+                else:
+                    # GET
+                    resp = self.session.get(get_url, timeout=timeout)
+
+            except requests.Timeout as exc:
+                raise OwnerclanApiError(
+                    f"Request timed out after {timeout}s"
+                ) from exc
+            except requests.RequestException as exc:
+                raise OwnerclanApiError(
+                    f"Request failed: {exc}"
+                ) from exc
+
+            # Retryable HTTP errors
+            if resp.status_code == 429:
+                wait = 3 * (attempt + 1)
+                logger.warning(
+                    "Rate-limited (429), waiting %ds (attempt %d/%d)",
+                    wait, attempt + 1, max_retries,
+                )
+                time.sleep(wait)
+                continue
+
+            if 500 <= resp.status_code < 600:
+                wait = 2 * (attempt + 1)
+                logger.warning(
+                    "Server error (%d), waiting %ds (attempt %d/%d)",
+                    resp.status_code, wait, attempt + 1, max_retries,
+                )
+                time.sleep(wait)
+                continue
+
+            # Non-retryable HTTP errors
+            if resp.status_code != 200:
+                raise OwnerclanApiError(
+                    f"HTTP {resp.status_code}: {resp.text[:500]}"
+                )
+
+            # Parse JSON
+            try:
+                data = resp.json()
+            except ValueError as exc:
+                raise OwnerclanApiError(
+                    f"Invalid JSON response: {resp.text[:500]}"
+                ) from exc
+
+            # GraphQL-level errors
+            if "errors" in data:
+                messages = [
+                    e.get("message", str(e)) for e in data["errors"]
+                ]
+                raise OwnerclanApiError(
+                    f"GraphQL errors: {'; '.join(messages)}",
+                    errors=data["errors"],
+                )
+
+            # Extract data — return value of the first key
+            result = data.get("data", {})
+            if not result:
+                raise OwnerclanApiError(
+                    f"No data in response: {json.dumps(data)[:500]}"
+                )
+            first_key = next(iter(result))
+            return result[first_key]
+
+        # Exhausted all retries
+        raise OwnerclanApiError(
+            f"Max retries ({max_retries}) exceeded for GraphQL request"
+        )
