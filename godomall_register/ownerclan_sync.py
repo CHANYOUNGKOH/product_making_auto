@@ -148,3 +148,181 @@ def _detect_changes(existing: dict, new_values: dict) -> dict:
         }
 
     return changes
+
+
+# ── Public API ──────────────────────────────────────────────────────────────
+
+
+def sync_products(
+    db_path: str | Path | None = None,
+    product_codes: list[str] | None = None,
+    config_path: str | Path | None = None,
+    progress_callback=None,
+) -> dict:
+    """Sync product.db oc_* columns with latest Ownerclan API data.
+
+    Args:
+        db_path: Path to products.db. None → DEFAULT_DB_PATH.
+        product_codes: List of product codes to sync. None → all ACTIVE.
+        config_path: Path to ownerclan_config.json. None → default.
+        progress_callback: Optional callable(current, total, message) for progress.
+
+    Returns:
+        dict with keys: synced, price_changed, ship_changed,
+        status_changed, not_found, errors, synced_at
+
+    Note:
+        If a product code appears in multiple rows (same code, different
+        market_id), all rows are updated with the same oc_* values.
+        This is intentional — wholesale price/status is per-product, not
+        per-market.
+    """
+    from godomall_register.ownerclan_client import OwnerclanClient, OwnerclanApiError
+
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+    db_path = Path(db_path)
+
+    # DB existence check
+    if not db_path.exists():
+        return {
+            "synced": 0, "price_changed": [], "ship_changed": [],
+            "status_changed": [], "not_found": [],
+            "errors": [f"DB file not found: {db_path}"],
+            "synced_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    result = {
+        "synced": 0,
+        "price_changed": [],
+        "ship_changed": [],
+        "status_changed": [],
+        "not_found": [],
+        "errors": [],
+        "synced_at": now_iso,
+    }
+
+    # 1. DB connect + ensure columns
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        _ensure_oc_columns(conn)
+
+        # 2. Collect product codes
+        if product_codes is None:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT DISTINCT 상품코드 FROM products "
+                "WHERE product_status = 'ACTIVE' "
+                "AND 상품코드 IS NOT NULL AND 상품코드 != ''"
+            )
+            product_codes = [row[0] for row in cursor.fetchall()]
+
+        if not product_codes:
+            logger.info("No product codes to sync")
+            return result
+
+        logger.info("Syncing %d product codes", len(product_codes))
+
+        if progress_callback:
+            progress_callback(0, len(product_codes), "API 호출 중...")
+
+        # 3. Load existing oc_* values
+        existing_map = _load_existing_oc_values(conn, product_codes)
+
+        # 4. Call API
+        client = OwnerclanClient(config_path=config_path)
+        try:
+            api_items = client.get_items_by_keys(
+                product_codes, fields=SYNC_FIELDS, timeout=120
+            )
+        except OwnerclanApiError as exc:
+            result["errors"].append(str(exc))
+            logger.error("API call failed: %s", exc)
+            return result
+
+        # Build lookup by key
+        api_map = {item["key"]: item for item in api_items if "key" in item}
+
+        # 5. Detect changes + build updates
+        update_cursor = conn.cursor()
+
+        for code in product_codes:
+            api_item = api_map.get(code)
+            if api_item is None:
+                result["not_found"].append(code)
+                continue
+
+            new_values = _extract_api_values(api_item)
+            existing = existing_map.get(code, {})
+            changes = _detect_changes(existing, new_values)
+
+            # Build UPDATE SET clause
+            update_fields = {
+                "oc_price": new_values["oc_price"],
+                "oc_shipping_fee": new_values["oc_shipping_fee"],
+                "oc_shipping_type": new_values["oc_shipping_type"],
+                "oc_bundle_ship": new_values["oc_bundle_ship"],
+                "oc_status": new_values["oc_status"],
+                "oc_synced_at": now_iso,
+            }
+
+            if changes:
+                update_fields["oc_changed_at"] = now_iso
+
+                if "price" in changes:
+                    update_fields["oc_prev_price"] = changes["price"]["prev"]
+                    result["price_changed"].append({
+                        "code": code,
+                        "prev": changes["price"]["prev"],
+                        "current": changes["price"]["current"],
+                    })
+
+                if "shipping_fee" in changes:
+                    update_fields["oc_prev_ship_fee"] = changes["shipping_fee"]["prev"]
+                    result["ship_changed"].append({
+                        "code": code,
+                        "prev": changes["shipping_fee"]["prev"],
+                        "current": changes["shipping_fee"]["current"],
+                        "type": new_values["oc_shipping_type"],
+                    })
+
+                if "status" in changes:
+                    result["status_changed"].append({
+                        "code": code,
+                        "prev": changes["status"]["prev"],
+                        "current": changes["status"]["current"],
+                    })
+
+            # Execute UPDATE
+            set_clause = ", ".join(f"{k} = ?" for k in update_fields)
+            values = list(update_fields.values()) + [code]
+            update_cursor.execute(
+                f"UPDATE products SET {set_clause} WHERE 상품코드 = ?",
+                values,
+            )
+
+            result["synced"] += 1
+
+            if progress_callback and result["synced"] % 100 == 0:
+                progress_callback(
+                    result["synced"],
+                    len(product_codes),
+                    f"{result['synced']}/{len(product_codes)} 동기화 중...",
+                )
+
+        conn.commit()
+        logger.info(
+            "Sync complete: %d synced, %d price changes, %d status changes, %d not found",
+            result["synced"],
+            len(result["price_changed"]),
+            len(result["status_changed"]),
+            len(result["not_found"]),
+        )
+
+    finally:
+        conn.close()
+
+    return result
