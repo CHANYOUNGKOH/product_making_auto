@@ -43,6 +43,8 @@ def _resolve_target_s(cost_a: float, target_bands: list[tuple[float, float]]) ->
         The target_s from the matching band, or the last band's target_s
         as fallback.
     """
+    if not target_bands:
+        return 0.0
     for limit, target_s in target_bands:
         if cost_a <= limit:
             return target_s
@@ -246,6 +248,7 @@ def batch_solve(
         plus all forward_calc fields (G, I, L, N, Q, O, S, cost_ratio,
         revenue_ratio, market_price).
     """
+    target_bands = sorted(target_bands, key=lambda x: x[0])
     results = []
     for product in products:
         code = product["code"]
