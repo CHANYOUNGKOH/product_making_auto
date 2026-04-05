@@ -28,8 +28,8 @@
 ## 이 모듈이 하는 것 / 하지 않는 것
 
 ### 하는 것
-- 오픈마켓별 수수료율/수수료기준 관리
-- 명의자별 기본 배송전략/배송비/할인율 관리
+- 오픈마켓별 수수료율/수수료기준/기본할인율 관리
+- 명의자별 기본 배송전략/배송비 관리
 - 스토어별 정책 오버라이드 관리
 - 스토어 상태 관리 (active/suspended/closed)
 - 새 스토어 등록용 템플릿 제공
@@ -48,10 +48,10 @@
 
 ```
 오픈마켓 (market)
-  수수료율, 수수료기준, 상태
+  수수료율, 수수료기준, 기본할인율, 상태
     │
-    ├─ 명의자 (owner) — 기본 정책
-    │    기본 배송전략, 기본 배송비, 기본 할인율
+    ├─ 명의자 (owner) — 배송 기본 정책
+    │    기본 배송전략, 기본 배송비
     │      │
     │      └─ 스토어 (store) — 오버라이드
     │           배송전략, 배송비, 할인율, 상태
@@ -60,7 +60,55 @@
          새 스토어 추가 시 복제하는 기본값 세트
 ```
 
-**상속 규칙**: 스토어의 `null` 필드 → 명의자 기본값 사용. 값이 있으면 오버라이드.
+**상속 규칙**:
+- 할인율: 스토어 `null` → 마켓 기본할인율 사용. 스토어에 값이 있으면 오버라이드.
+- 배송전략/배송비: 스토어 `null` → 명의자 기본값 사용. 스토어에 값이 있으면 오버라이드.
+- 수수료율/수수료기준: 항상 마켓 레벨 (스토어 오버라이드 없음).
+
+---
+
+## 비즈니스 로직 (정책 결정의 이유)
+
+### 할인율 전략
+
+마켓별로 할인율을 다르게 설정하는 이유:
+
+- **스마트스토어 50%**: 수수료가 실결제금액(할인가) 기준이므로, 높은 할인율로 판매가를 높게
+  설정 → 옵션가격이 판매가에 연동되므로 옵션가격으로 마진 확보. 70% 이상은 노출 제한 위험.
+- **옥션/지마켓 2% 또는 61%**: 같은 ESM 플랫폼이지만 스토어별로 두 가지 전략 선택 가능.
+- **나머지 마켓 2%**: 수수료가 할인 전 판매가 기준이므로 할인율을 낮게 유지.
+- **고도몰**: 할인율 개념 없음. 자체 쿠폰정책으로 운영 (가격대별 4단계, 위탁주문가 이상만).
+
+### 배송전략
+
+명의자별 기본 전략이 다른 이유:
+
+- **명의자A (유료배송 3000원)**: 배송비를 구매자에게 직접 받음.
+  도매 배송비 5000원 → 3000원으로 판매, 차액 2000원은 제품가에 흡수.
+  도매 무배 상품 → 3000원 배송비가 추가 마진이 됨.
+- **명의자B (무료배송)**: 배송비를 제품가격에 흡수.
+
+### 배송비 옵션
+
+모든 마켓 공통으로 사용 가능한 배송비 값:
+
+| 배송비 | 유형 | 비고 |
+|--------|------|------|
+| 0 | 무료배송 | |
+| 3000 | 유료배송 기본 | 가장 빈번 |
+| 착불 10000 | 착불배송 | 대형/무거운 상품, 빈도 낮음 |
+| 3500~7000 | 유료배송 확장 | 추후 도입 예정 (3500, 4000, 4500, 5000, 6000, 7000) |
+
+스토어의 `shipping_fee`는 해당 스토어의 **기본 배송비**이며, 실제 상품별 적용은
+가격계산 모듈이 도매 배송비와 조합하여 결정한다.
+
+### 수수료 적용 방식 차이
+
+같은 수수료율이라도 적용 기준에 따라 마진이 달라짐:
+
+- **할인전 기준 (`pre_discount`)**: 대부분의 마켓. 할인 전 판매가에 수수료 부과.
+- **할인후 기준 (`post_discount`)**: 스마트스토어, 고도몰. 실결제금액에 수수료 부과.
+  → 할인율을 높여도 수수료 부담이 줄어들어 옵션가격 마진 전략이 가능.
 
 ---
 
@@ -74,68 +122,84 @@
     "쿠팡": {
       "commission_rate": 11.5,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "pending"
     },
     "11번가": {
       "commission_rate": 17.5,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "registering"
     },
     "옥션": {
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
-      "status": "registering"
+      "default_discount_rate": 2,
+      "status": "registering",
+      "note": "스토어별 2% 또는 61% 선택 가능"
     },
     "지마켓": {
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
-      "status": "registering"
+      "default_discount_rate": 2,
+      "status": "registering",
+      "note": "스토어별 2% 또는 61% 선택 가능"
     },
     "스마트스토어": {
       "commission_rate": 6.5,
       "commission_base": "post_discount",
-      "status": "registering"
+      "default_discount_rate": 50,
+      "status": "registering",
+      "note": "할인율 70% 미만 유지 필요 (노출 제한 위험). 옵션가격이 판매가 연동 → 옵션으로 마진 확보 전략"
     },
     "롯데온": {
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "카카오톡스토어": {
       "commission_rate": 10.0,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "올웨이즈": {
       "commission_rate": 12.0,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "에이블리": {
       "commission_rate": 18.0,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "토스쇼핑": {
       "commission_rate": 15.0,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "멸치쇼핑": {
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "오늘의집": {
       "commission_rate": 20.0,
       "commission_base": "pre_discount",
+      "default_discount_rate": 2,
       "status": "planned"
     },
     "고도몰": {
       "commission_rate": 4.0,
-      "commission_base": "custom",
+      "commission_base": "post_discount",
+      "default_discount_rate": null,
       "status": "pending",
-      "note": "자체쿠폰정책, 가격대별 4단계, 위탁주문가 이상만 쿠폰 발행"
+      "note": "할인율 개념 없음. 실결제금액 기준 수수료. 자체쿠폰정책: 가격대별 4단계, 위탁주문가 이상만 쿠폰 발행"
     }
   },
 
@@ -143,14 +207,12 @@
     "A": {
       "name": "고찬영",
       "default_shipping_strategy": "paid",
-      "default_shipping_fee": 3000,
-      "default_discount_rate": 2
+      "default_shipping_fee": 3000
     },
     "B": {
       "name": "최빛나",
       "default_shipping_strategy": "free",
-      "default_shipping_fee": 0,
-      "default_discount_rate": 50
+      "default_shipping_fee": 0
     }
   },
 
@@ -171,13 +233,11 @@
   "templates": {
     "owner_A_default": {
       "shipping_strategy": "paid",
-      "shipping_fee": 3000,
-      "discount_rate": 2
+      "shipping_fee": 3000
     },
     "owner_B_default": {
       "shipping_strategy": "free",
-      "shipping_fee": 0,
-      "discount_rate": 50
+      "shipping_fee": 0
     }
   }
 }
@@ -190,18 +250,18 @@
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | `commission_rate` | float | 마켓 수수료율 (%) |
-| `commission_base` | string | 수수료 적용 기준: `pre_discount` (할인전), `post_discount` (할인후), `custom` (별도) |
+| `commission_base` | string | 수수료 적용 기준: `pre_discount` (할인전 판매가), `post_discount` (할인후 실결제금액) |
+| `default_discount_rate` | float? | 마켓 기본 할인율 (%). null이면 할인 개념 없음 (고도몰) |
 | `status` | string | `registering` (등록중), `pending` (등록예정), `planned` (예정), `active` (활성), `suspended` (정지) |
-| `note` | string? | 특이사항 (고도몰 쿠폰정책 등) |
+| `note` | string? | 비즈니스 로직 설명, 특이사항 |
 
 **owners**
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | `name` | string | 명의자 이름 |
-| `default_shipping_strategy` | string | 기본 배송전략: `paid` (유료), `free` (무료) |
-| `default_shipping_fee` | int | 기본 배송비 (원) |
-| `default_discount_rate` | float | 기본 할인율 (%) |
+| `default_shipping_strategy` | string | 기본 배송전략: `paid` (유료), `free` (무료), `collect` (착불) |
+| `default_shipping_fee` | int | 기본 배송비 (원). 유료=3000, 무료=0, 착불=10000 |
 
 **stores**
 
@@ -215,11 +275,11 @@
 | `status` | string | `active`, `suspended`, `closed` |
 | `shipping_strategy` | string? | null이면 명의자 기본값 상속 |
 | `shipping_fee` | int? | null이면 명의자 기본값 상속 |
-| `discount_rate` | float? | null이면 명의자 기본값 상속 |
+| `discount_rate` | float? | null이면 마켓 기본할인율 상속 |
 
 **templates**
 
-새 스토어 등록 시 기본값으로 복제하는 정책 세트. 명의자별 기본 템플릿 제공.
+새 스토어 등록 시 복제하는 배송 정책 기본값 세트. 명의자별 기본 템플릿 제공.
 
 ---
 
@@ -263,9 +323,9 @@ get_store_policy("쿠팡A2-1")
 #     "status": "active",
 #     "commission_rate": 11.5,        ← 마켓에서
 #     "commission_base": "pre_discount", ← 마켓에서
+#     "discount_rate": 2,              ← 마켓 기본할인율 (스토어 null)
 #     "shipping_strategy": "paid",     ← 명의자 기본값 (스토어 null)
 #     "shipping_fee": 3000,            ← 명의자 기본값 (스토어 null)
-#     "discount_rate": 2               ← 명의자 기본값 (스토어 null)
 # }
 ```
 
@@ -334,21 +394,21 @@ DB_save/
 
 마켓별 수수료율은 이 스펙에 확정된 값을 사용:
 
-| 마켓 | 수수료율 | 수수료기준 | 상태 |
-|------|---------|-----------|------|
-| 쿠팡 | 11.5% | 할인전 | 등록예정 |
-| 11번가 | 17.5% | 할인전 | 등록중 |
-| 옥션 | 16.5% | 할인전 | 등록중 |
-| 지마켓 | 16.5% | 할인전 | 등록중 |
-| 스마트스토어 | 6.5% | 할인후 | 등록중 |
-| 롯데온 | 16.5% | 할인전 | 예정 |
-| 카카오톡스토어 | 10.0% | 할인전 | 예정 |
-| 올웨이즈 | 12.0% | 할인전 | 예정 |
-| 에이블리 | 18.0% | 할인전 | 예정 |
-| 토스쇼핑 | 15.0% | 할인전 | 예정 |
-| 멸치쇼핑 | 16.5% | 할인전 | 예정 |
-| 오늘의집 | 20.0% | 할인전 | 예정 |
-| 고도몰 | 4.0% | 별도 | 등록예정 |
+| 마켓 | 수수료율 | 수수료기준 | 기본할인율 | 상태 |
+|------|---------|-----------|----------|------|
+| 쿠팡 | 11.5% | 할인전 | 2% | 등록예정 |
+| 11번가 | 17.5% | 할인전 | 2% | 등록중 |
+| 옥션 | 16.5% | 할인전 | 2% (61% 가능) | 등록중 |
+| 지마켓 | 16.5% | 할인전 | 2% (61% 가능) | 등록중 |
+| 스마트스토어 | 6.5% | 할인후 | 50% | 등록중 |
+| 롯데온 | 16.5% | 할인전 | 2% | 예정 |
+| 카카오톡스토어 | 10.0% | 할인전 | 2% | 예정 |
+| 올웨이즈 | 12.0% | 할인전 | 2% | 예정 |
+| 에이블리 | 18.0% | 할인전 | 2% | 예정 |
+| 토스쇼핑 | 15.0% | 할인전 | 2% | 예정 |
+| 멸치쇼핑 | 16.5% | 할인전 | 2% | 예정 |
+| 오늘의집 | 20.0% | 할인전 | 2% | 예정 |
+| 고도몰 | 4.0% | 할인후 | 해당없음 | 등록예정 |
 
 ---
 
