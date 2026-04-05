@@ -279,3 +279,22 @@ class OwnerclanClient:
         raise OwnerclanApiError(
             f"Max retries ({max_retries}) exceeded for GraphQL request"
         )
+
+    # ── metadata parsing ──────────────────────────────────────────────────
+    def _parse_metadata(self, item: dict) -> dict:
+        """metadata JSON 스칼라 → dict 파싱. 실패 시 빈 dict."""
+        if "metadata" in item and isinstance(item["metadata"], str):
+            try:
+                item["metadata"] = json.loads(item["metadata"])
+            except (json.JSONDecodeError, TypeError):
+                item["metadata"] = {}
+        return item
+
+    # ── single item query ─────────────────────────────────────────────────
+    def get_item(self, key: str, fields: str = None) -> dict:
+        """item(key) — 단건 상세 조회. metadata 자동 파싱."""
+        if fields is None:
+            fields = ITEM_FIELDS_FULL
+        query = f'{{ item(key: "{key}") {{ {fields} }} }}'
+        result = self._graphql(query)
+        return self._parse_metadata(result) if result else result
