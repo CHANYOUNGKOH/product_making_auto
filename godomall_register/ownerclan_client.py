@@ -420,3 +420,42 @@ class OwnerclanClient:
             all_items = [self._parse_metadata(item) for item in all_items]
 
         return all_items
+
+    # ── item histories ────────────────────────────────────────────────────
+    def get_item_histories(self, date_from: int, date_to: int = None,
+                           kind: str = None, item_key: str = None,
+                           first: int = 100, max_pages: int = None,
+                           fields: str = None, timeout: int = 30) -> list[dict]:
+        """itemHistories — 7일 제한, 밀리초 타임스탬프."""
+        if fields is None:
+            fields = HISTORY_FIELDS
+        if date_to is None:
+            date_to = int(time.time() * 1000)
+
+        diff_days = (date_to - date_from) / (1000 * 60 * 60 * 24)
+        if diff_days > self.MAX_HISTORY_DAYS:
+            raise OwnerclanApiError(
+                f"itemHistories max range is {self.MAX_HISTORY_DAYS} days, "
+                f"requested {diff_days:.1f} days"
+            )
+
+        params = []
+        params.append("first: {first}")
+        params.append("{after_clause}")
+        params.append(f"dateFrom: {date_from}")
+        params.append(f"dateTo: {date_to}")
+        if kind:
+            params.append(f"kind: {kind}")
+        if item_key:
+            params.append(f'itemKey: "{item_key}"')
+
+        param_str = ", ".join(params)
+        # Double-escape braces for .format() in _paginate
+        query_template = (
+            f"itemHistories({param_str}) {{{{ "
+            f"pageInfo {{{{ hasNextPage endCursor }}}} "
+            f"edges {{{{ node {{{{ {fields} }}}} }}}} }}}}"
+        )
+
+        return self._paginate(query_template, "itemHistories",
+                              first=first, max_pages=max_pages, timeout=timeout)
