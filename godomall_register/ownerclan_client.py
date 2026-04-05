@@ -298,3 +298,94 @@ class OwnerclanClient:
         query = f'{{ item(key: "{key}") {{ {fields} }} }}'
         result = self._graphql(query)
         return self._parse_metadata(result) if result else result
+
+    # ── pagination helper ─────────────────────────────────────────────────
+    def _paginate(self, query_template: str, connection_name: str,
+                  first: int = 100, max_pages: int = None,
+                  timeout: int = 30) -> list:
+        """cursor-based pagination 공통 처리. 전체 node 리스트 반환."""
+        all_nodes = []
+        cursor = None
+        page = 0
+
+        while True:
+            after_clause = f', after: "{cursor}"' if cursor else ""
+            query = query_template.format(first=first, after_clause=after_clause)
+            result = self._graphql(f"{{ {query} }}", timeout=timeout)
+
+            if not result:
+                break
+
+            page_info = result.get("pageInfo", {})
+            edges = result.get("edges", [])
+
+            for edge in edges:
+                node = edge.get("node", edge)
+                all_nodes.append(node)
+
+            if not page_info.get("hasNextPage", False):
+                break
+
+            cursor = page_info.get("endCursor")
+            if not cursor:
+                break
+
+            page += 1
+            if max_pages and page >= max_pages:
+                break
+
+            logger.debug("Page %d done, %d items so far", page, len(all_nodes))
+
+        return all_nodes
+
+    # ── search items ──────────────────────────────────────────────────────
+    def search_items(self, *, search: str = None, status: str = None,
+                     vendor: str = None, grade: str = None,
+                     category: str = None, min_price: int = None,
+                     max_price: int = None, sort_by: str = None,
+                     date_from: int = None, date_to: int = None,
+                     first: int = 100, max_pages: int = None,
+                     fields: str = None, timeout: int = 30) -> list[dict]:
+        """allItems — 필터 조합 검색 + cursor pagination."""
+        if fields is None:
+            fields = ITEM_FIELDS_LIGHT
+
+        params = []
+        params.append("first: {first}")
+        params.append("{after_clause}")
+        if search:
+            params.append(f'search: "{search}"')
+        if status:
+            params.append(f"status: {status}")
+        if vendor:
+            params.append(f'vendor: "{vendor}"')
+        if grade:
+            params.append(f"grade: {grade}")
+        if category:
+            params.append(f'category: "{category}"')
+        if min_price is not None:
+            params.append(f"minPrice: {min_price}")
+        if max_price is not None:
+            params.append(f"maxPrice: {max_price}")
+        if sort_by:
+            params.append(f"sortBy: {sort_by}")
+        if date_from is not None:
+            params.append(f"dateFrom: {date_from}")
+        if date_to is not None:
+            params.append(f"dateTo: {date_to}")
+
+        param_str = ", ".join(params)
+        # Double-escape braces that must survive .format() in _paginate
+        query_template = (
+            f"allItems({param_str}) {{{{ "
+            f"pageInfo {{{{ hasNextPage endCursor }}}} "
+            f"edges {{{{ cursor node {{{{ {fields} }}}} }}}} }}}}"
+        )
+
+        items = self._paginate(query_template, "allItems",
+                               first=first, max_pages=max_pages, timeout=timeout)
+
+        if "metadata" in (fields or ""):
+            items = [self._parse_metadata(item) for item in items]
+
+        return items
