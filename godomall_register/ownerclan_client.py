@@ -509,3 +509,78 @@ class OwnerclanClient:
             f"edges {{{{ node {{{{ {fields} }}}} }}}} }}}}"
         )
         return self._paginate(query_template, "allCategories", first=first)
+
+
+if __name__ == "__main__":
+    """Smoke test — 실제 API 호출로 전체 기능 검증"""
+    import sys
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    client = OwnerclanClient()
+
+    print("=" * 60)
+    print("오너클랜 API 클라이언트 Smoke Test")
+    print("=" * 60)
+
+    # 1. 인증
+    print("\n[1] Authentication")
+    client.authenticate()
+    print(f"  Token: {client.token[:30]}...")
+    print(f"  Expires: {client.token_expires_at}")
+
+    # 2. 단건 조회
+    print("\n[2] get_item('WFNJKLQ')")
+    item = client.get_item("WFNJKLQ")
+    if item:
+        print(f"  Name: {item.get('name')}")
+        print(f"  Price: {item.get('price')}원")
+        print(f"  Status: {item.get('status')}")
+        print(f"  Grade: {item.get('metadata', {}).get('grade')}")
+    else:
+        print("  Item not found")
+
+    # 3. 검색
+    print("\n[3] search_items(search='텀블러', max_pages=1)")
+    items = client.search_items(search="텀블러", first=5, max_pages=1)
+    print(f"  Found: {len(items)} items")
+    for it in items[:3]:
+        print(f"    {it['key']} - {it['name'][:40]}")
+
+    # 4. 배치 조회
+    print("\n[4] get_items_by_keys()")
+    if items:
+        test_keys = [it["key"] for it in items[:3]]
+        batch = client.get_items_by_keys(test_keys)
+        print(f"  Requested: {len(test_keys)}, Got: {len(batch)}")
+        for it in batch:
+            print(f"    {it['key']} - {it['status']}")
+
+    # 5. 변경 이력
+    print("\n[5] get_item_histories(3 days, priceDecreased)")
+    import time as _time
+    now_ms = int(_time.time() * 1000)
+    three_days_ms = now_ms - (3 * 24 * 60 * 60 * 1000)
+    histories = client.get_item_histories(
+        date_from=three_days_ms, kind="priceDecreased", max_pages=1
+    )
+    print(f"  Price decreases: {len(histories)}")
+    for h in histories[:3]:
+        print(f"    {h['itemKey']}: {h['valueBefore']} -> {h['valueAfter']}")
+
+    # 6. 카테고리
+    print("\n[6] get_categories()")
+    cats = client.get_categories()
+    print(f"  Categories: {len(cats)}")
+    for cat in cats[:5]:
+        print(f"    {cat['key']} - {cat.get('fullName', cat.get('name'))}")
+
+    # 7. 주문
+    print("\n[7] get_orders(max_pages=1)")
+    orders = client.get_orders(first=5, max_pages=1)
+    print(f"  Orders: {len(orders)}")
+    for o in orders[:3]:
+        print(f"    {o['key']} - {o['status']}")
+
+    print("\n" + "=" * 60)
+    print("Smoke test complete!")
+    print("=" * 60)
