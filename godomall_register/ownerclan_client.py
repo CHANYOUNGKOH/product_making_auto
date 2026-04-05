@@ -13,8 +13,8 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ── URL constants ────────────────────────────────────────────────────────────
-AUTH_URL = "https://auth.ownerclan.com/auth/authenticate"
-AUTH_SANDBOX_URL = "https://auth.sandbox.ownerclan.com/auth/authenticate"
+AUTH_URL = "https://auth.ownerclan.com/auth"
+AUTH_SANDBOX_URL = "https://auth.sandbox.ownerclan.com/auth"
 API_URL = "https://api.ownerclan.com/graphql"
 API_SANDBOX_URL = "https://api.sandbox.ownerclan.com/graphql"
 
@@ -119,3 +119,69 @@ class OwnerclanClient:
             f.write("\n")
 
         logger.debug("Token saved to %s", self.config_path)
+
+    # ── authentication ───────────────────────────────────────────────────
+    def authenticate(self) -> str:
+        """Obtain a new JWT from the Ownerclan auth endpoint.
+
+        Returns the raw token string.
+        """
+        payload = {
+            "service": "ownerclan",
+            "userType": "seller",
+            "username": self.username,
+            "password": self.password,
+        }
+        try:
+            resp = self.session.post(self.auth_url, json=payload, timeout=10)
+        except requests.RequestException as exc:
+            raise OwnerclanAuthError(f"Auth request failed: {exc}") from exc
+
+        if resp.status_code != 200:
+            raise OwnerclanAuthError(
+                f"Authentication failed (HTTP {resp.status_code}): {resp.text}"
+            )
+
+        token = resp.text.strip()
+        if not token:
+            raise OwnerclanAuthError("Empty token received from auth endpoint")
+
+        # Parse JWT exp claim (second segment, base64-url decoded)
+        try:
+            parts = token.split(".")
+            # Add padding for base64url
+            payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+            jwt_payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+            exp_ts = jwt_payload["exp"]
+            self.token_expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc)
+            logger.info("JWT expires at %s", self.token_expires_at)
+        except Exception:
+            # Fallback: 30 days from now
+            self.token_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+            logger.warning("Could not parse JWT exp; defaulting to 30 days")
+
+        self.token = token
+        self.session.headers["Authorization"] = f"Bearer {self.token}"
+        self._save_token()
+        logger.info("Authenticated as %s", self.username)
+        return token
+
+    def _ensure_token(self) -> None:
+        """Ensure a valid token is present; re-authenticate if needed."""
+        now = datetime.now(timezone.utc)
+
+        if self.token and self.token_expires_at:
+            # Normalise naive expiry to UTC for comparison
+            expires = self.token_expires_at
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+
+            if expires - now > timedelta(days=1):
+                # Token still valid — just make sure the header is set
+                if "Authorization" not in self.session.headers:
+                    self.session.headers["Authorization"] = f"Bearer {self.token}"
+                return
+
+        # Token missing or about to expire
+        logger.info("Token missing or expiring soon — re-authenticating")
+        self.authenticate()
