@@ -459,3 +459,53 @@ class OwnerclanClient:
 
         return self._paginate(query_template, "itemHistories",
                               first=first, max_pages=max_pages, timeout=timeout)
+
+    # ── orders ────────────────────────────────────────────────────────────
+    def get_orders(self, *, status: str = None, date_from: int = None,
+                   date_to: int = None, first: int = 100,
+                   max_pages: int = None, fields: str = None,
+                   timeout: int = 30) -> list[dict]:
+        """allOrders — 주문 목록 + pagination."""
+        if fields is None:
+            fields = ORDER_FIELDS_LIST
+
+        params = []
+        params.append("first: {first}")
+        params.append("{after_clause}")
+        if status:
+            params.append(f"status: {status}")
+        if date_from is not None:
+            params.append(f"dateFrom: {date_from}")
+        if date_to is not None:
+            params.append(f"dateTo: {date_to}")
+
+        param_str = ", ".join(params)
+        # Double-escape braces for .format() in _paginate
+        query_template = (
+            f"allOrders({param_str}) {{{{ "
+            f"pageInfo {{{{ hasNextPage endCursor }}}} "
+            f"edges {{{{ node {{{{ {fields} }}}} }}}} }}}}"
+        )
+
+        return self._paginate(query_template, "allOrders",
+                              first=first, max_pages=max_pages, timeout=timeout)
+
+    def get_order(self, key: str, fields: str = None) -> dict:
+        """order(key) — 주문 상세."""
+        if fields is None:
+            fields = ORDER_FIELDS_DETAIL
+        query = f'{{ order(key: "{key}") {{ {fields} }} }}'
+        return self._graphql(query)
+
+    # ── categories ────────────────────────────────────────────────────────
+    def get_categories(self, first: int = 100, fields: str = None) -> list[dict]:
+        """allCategories — 전체 카테고리 수집 후 리스트 반환."""
+        if fields is None:
+            fields = CATEGORY_FIELDS
+        # Double-escape braces for .format() in _paginate
+        query_template = (
+            f"allCategories(first: {{first}}{{after_clause}}) {{{{ "
+            f"pageInfo {{{{ hasNextPage endCursor }}}} "
+            f"edges {{{{ node {{{{ {fields} }}}} }}}} }}}}"
+        )
+        return self._paginate(query_template, "allCategories", first=first)
