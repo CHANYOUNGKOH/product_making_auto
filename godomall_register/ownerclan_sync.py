@@ -326,3 +326,122 @@ def sync_products(
         conn.close()
 
     return result
+
+
+if __name__ == "__main__":
+    """Smoke test — 실제 API + 실제 DB로 동기화 검증"""
+    import sys
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    # Resolve DB path
+    db_path = DEFAULT_DB_PATH
+    if len(sys.argv) > 1:
+        db_path = Path(sys.argv[1])
+
+    if not db_path.exists():
+        print(f"DB not found: {db_path}")
+        sys.exit(1)
+
+    print("=" * 60)
+    print("오너클랜 DB 동기화 Smoke Test")
+    print(f"DB: {db_path}")
+    print("=" * 60)
+
+    # 1. Check current ACTIVE count
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(DISTINCT 상품코드) FROM products "
+        "WHERE product_status = 'ACTIVE' "
+        "AND 상품코드 IS NOT NULL AND 상품코드 != ''"
+    )
+    total_active = cursor.fetchone()[0]
+    conn.close()
+    print(f"\n[1] ACTIVE 상품코드: {total_active}개")
+
+    # 2. Sync a small sample first (max 10)
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT DISTINCT 상품코드 FROM products "
+        "WHERE product_status = 'ACTIVE' "
+        "AND 상품코드 IS NOT NULL AND 상품코드 != '' "
+        "LIMIT 10"
+    )
+    sample_codes = [row[0] for row in cursor.fetchall()]
+    conn.close()
+
+    if not sample_codes:
+        print("  ACTIVE 상품 없음 — 테스트 불가")
+        sys.exit(0)
+
+    print(f"\n[2] 샘플 동기화 ({len(sample_codes)}건)")
+    print(f"  Codes: {sample_codes[:5]}{'...' if len(sample_codes) > 5 else ''}")
+
+    result = sync_products(db_path=db_path, product_codes=sample_codes)
+
+    print(f"  Synced: {result['synced']}")
+    print(f"  Price changed: {len(result['price_changed'])}")
+    for pc in result["price_changed"]:
+        print(f"    {pc['code']}: {pc['prev']}원 → {pc['current']}원")
+    print(f"  Shipping changed: {len(result['ship_changed'])}")
+    for sc in result["ship_changed"]:
+        print(f"    {sc['code']}: {sc['prev']}원 → {sc['current']}원 ({sc['type']})")
+    print(f"  Status changed: {len(result['status_changed'])}")
+    for st in result["status_changed"]:
+        print(f"    {st['code']}: {st['prev']} → {st['current']}")
+    print(f"  Not found: {len(result['not_found'])}")
+    if result["not_found"]:
+        print(f"    {result['not_found'][:5]}")
+    print(f"  Errors: {len(result['errors'])}")
+
+    # 3. Verify DB was updated
+    print(f"\n[3] DB 확인")
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    for code in sample_codes[:3]:
+        cursor.execute(
+            "SELECT 상품코드, oc_price, oc_shipping_fee, oc_shipping_type, "
+            "oc_bundle_ship, oc_status, oc_synced_at FROM products "
+            "WHERE 상품코드 = ? LIMIT 1",
+            (code,),
+        )
+        row = cursor.fetchone()
+        if row:
+            print(
+                f"  {row['상품코드']}: "
+                f"price={row['oc_price']}, "
+                f"ship={row['oc_shipping_fee']} ({row['oc_shipping_type']}), "
+                f"bundle={row['oc_bundle_ship']}, "
+                f"status={row['oc_status']}, "
+                f"synced={row['oc_synced_at']}"
+            )
+    conn.close()
+
+    # 4. Test re-sync (should detect no changes since data hasn't changed)
+    print(f"\n[4] 재동기화 (변동 없음 확인)")
+    result2 = sync_products(db_path=db_path, product_codes=sample_codes[:3])
+    print(f"  Synced: {result2['synced']}")
+    print(f"  Price changed: {len(result2['price_changed'])} (expected: 0)")
+    print(f"  Status changed: {len(result2['status_changed'])} (expected: 0)")
+
+    # 5. Full sync option
+    if total_active > 10:
+        print(f"\n[5] 전체 ACTIVE 동기화 ({total_active}건)?")
+        answer = input("    실행? (y/N): ").strip().lower()
+        if answer == "y":
+            import time
+
+            start = time.time()
+            result_full = sync_products(db_path=db_path)
+            elapsed = time.time() - start
+            print(f"  Synced: {result_full['synced']}/{total_active} ({elapsed:.1f}초)")
+            print(f"  Price changed: {len(result_full['price_changed'])}")
+            print(f"  Status changed: {len(result_full['status_changed'])}")
+            print(f"  Not found: {len(result_full['not_found'])}")
+
+    print("\n" + "=" * 60)
+    print("Smoke test complete!")
+    print("=" * 60)
