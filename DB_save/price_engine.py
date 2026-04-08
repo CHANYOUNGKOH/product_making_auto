@@ -6,7 +6,7 @@
 Public API:
     forward_calc(cost_a, margin_c, h, policy, shipping_absorbed=0)
     solve_h(cost_a, margin_c, policy, target_s, shipping_absorbed=0, ...)
-    batch_solve(products, policy, target_bands, margin_c=1.12, ...)
+    batch_solve(products, policy, target_bands, metric="absolute_s", margin_c=1.12, ...)
 """
 
 from __future__ import annotations
@@ -320,6 +320,7 @@ def batch_solve(
     products: list[dict[str, Any]],
     policy: dict[str, Any],
     target_bands: list[tuple[float, float]],
+    metric: str = "absolute_s",
     margin_c: float = 1.12,
     shipping_absorbed: float = 0,
     min_h: float = 1.0,
@@ -331,7 +332,8 @@ def batch_solve(
     Args:
         products: List of dicts with at least "code" and "cost_a" keys.
         policy: Store policy dict.
-        target_bands: Sorted list of (limit, target_s) tuples.
+        target_bands: Sorted list of (limit, value) tuples.
+        metric: "absolute_s" (band 값=target_S) or "v_percent" (band 값=V%).
         margin_c: Margin coefficient (default 1.12).
         shipping_absorbed: Shipping cost absorbed.
         min_h: Minimum allowed H.
@@ -339,27 +341,42 @@ def batch_solve(
         round_h: Decimal places to round H.
 
     Returns:
-        List of flat dicts with: code, cost_a, target_s, h, h_raw, status,
-        plus all forward_calc fields (G, I, L, N, Q, O, S, cost_ratio,
-        revenue_ratio, market_price).
+        List of flat dicts with: code, cost_a, target_value, h, h_raw, status,
+        plus all forward_calc fields.
+
+    Raises:
+        ValueError: metric 이 "absolute_s" 또는 "v_percent" 가 아닌 경우.
     """
+    if metric not in ("absolute_s", "v_percent"):
+        raise ValueError(
+            f"Invalid metric '{metric}'. "
+            f"Must be 'absolute_s' or 'v_percent'."
+        )
+
     target_bands = sorted(target_bands, key=lambda x: x[0])
     results = []
     for product in products:
         code = product["code"]
         cost_a = product["cost_a"]
-        target_s = _resolve_target_s(cost_a, target_bands)
+        band_value = _resolve_target_s(cost_a, target_bands)
 
-        result = solve_h(
-            cost_a, margin_c, policy, target_s,
-            shipping_absorbed=shipping_absorbed,
-            min_h=min_h, max_h=max_h, round_h=round_h,
-        )
+        if metric == "v_percent":
+            result = solve_h_by_v(
+                cost_a, margin_c, policy, band_value,
+                shipping_absorbed=shipping_absorbed,
+                min_h=min_h, max_h=max_h, round_h=round_h,
+            )
+        else:  # absolute_s
+            result = solve_h(
+                cost_a, margin_c, policy, band_value,
+                shipping_absorbed=shipping_absorbed,
+                min_h=min_h, max_h=max_h, round_h=round_h,
+            )
 
         row = {
             "code": code,
             "cost_a": cost_a,
-            "target_s": target_s,
+            "target_value": band_value,
             "h": result["h"],
             "h_raw": result["h_raw"],
             "status": result["status"],
@@ -474,13 +491,13 @@ if __name__ == "__main__":
     batch_results = batch_solve(test_products, policy_11st, bands_11st)
 
     # Print formatted table
-    hdr = f"  {'code':<6} {'cost_a':>8} {'target_s':>9} {'h':>5} {'market':>8} {'S':>10} {'status':<12}"
+    hdr = f"  {'code':<6} {'cost_a':>8} {'target_value':>12} {'h':>5} {'market':>8} {'S':>10} {'status':<12}"
     print(hdr)
     print("  " + "-" * (len(hdr) - 2))
     for row in batch_results:
         mp = row.get("market_price", "")
         s_val = row.get("S", "")
-        print(f"  {row['code']:<6} {row['cost_a']:>8} {row['target_s']:>9} "
+        print(f"  {row['code']:<6} {row['cost_a']:>8} {row['target_value']:>12} "
               f"{row['h']:>5} {mp:>8} {s_val:>10} {row['status']:<12}")
 
     # ── [4] Integration with sales_channel_policy ────────────────────────
