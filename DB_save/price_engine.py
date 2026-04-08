@@ -244,7 +244,8 @@ def solve_h_by_v(
         target_v_pct: 목표 매출대비% (예: 18 → V=18%).
         shipping_absorbed: 배송비 흡수금 (F=R).
         min_h: H 최소값 (이하면 clamped).
-        max_h: H 최대값 (이상이면 clamped).
+        max_h: H 최대값 (이상이면 clamped). Default 4.0 (V 기반 전략은
+            큰 margin_c 와 함께 사용되어 H 헤드룸이 더 필요. solve_h 는 3.5).
         round_h: H 소수점 반올림 자리수.
 
     Returns:
@@ -274,11 +275,7 @@ def solve_h_by_v(
             "forward": None,
         }
 
-    fee_rate = policy["commission_rate"] / 100
-    J = (policy.get("discount_rate") or 0) / 100
-    E = policy.get("coupon_amount", 0)
-    P = (policy.get("reward_rate") or 0) / 100
-    commission_base = policy.get("commission_base", "pre_discount")
+    fee_rate, J, E, P, commission_base = _extract_policy_params(policy)
     M = E
     R = shipping_absorbed
     G = cost_a * margin_c + E + shipping_absorbed
