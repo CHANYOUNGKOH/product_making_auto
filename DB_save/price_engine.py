@@ -221,6 +221,104 @@ def solve_h(
     }
 
 
+def solve_h_by_v(
+    cost_a: float,
+    margin_c: float,
+    policy: dict[str, Any],
+    target_v_pct: float,
+    shipping_absorbed: float = 0,
+    min_h: float = 1.0,
+    max_h: float = 4.0,
+    round_h: int = 2,
+) -> dict[str, Any]:
+    """역방향 계산: 목표 V (매출대비%) → H 역산.
+
+    매출대비 영업이익률 (V = S/L * 100) 을 target 으로 H 를 역산한다.
+    pre_discount 와 post_discount 두 commission_base 모두 지원.
+
+    Args:
+        cost_a: 원가 (A열).
+        margin_c: 마진배수 (C열).
+        policy: get_store_policy() 반환 dict (commission_rate, commission_base,
+            discount_rate, coupon_amount, reward_rate).
+        target_v_pct: 목표 매출대비% (예: 18 → V=18%).
+        shipping_absorbed: 배송비 흡수금 (F=R).
+        min_h: H 최소값 (이하면 clamped).
+        max_h: H 최대값 (이상이면 clamped).
+        round_h: H 소수점 반올림 자리수.
+
+    Returns:
+        dict with keys:
+            h_raw: 역산된 H (반올림 전)
+            h: 반올림 + clamp 적용된 H
+            status: "ok" | "clamped_min" | "clamped_max"
+                  | "error_zero_cost" | "error_v_unreachable"
+            forward: forward_calc 결과 (h 적용 후)
+
+    수학:
+        pre_discount:
+            coef_v = (1-J)(1-P) - fee_rate - (V/100)(1-J)
+            H = (M+A+R) / (G × coef_v)
+        post_discount:
+            coef_v = (1-J)(1 - fee_rate - P - V/100)
+            H = (M+A+R) / (G × coef_v)
+
+    error_v_unreachable: target_V 가 이론적 V max 초과 (coef_v ≤ 0).
+        11번가 V max ≈ 65%.
+    """
+    if cost_a <= 0:
+        return {
+            "h_raw": None,
+            "h": None,
+            "status": "error_zero_cost",
+            "forward": None,
+        }
+
+    fee_rate = policy["commission_rate"] / 100
+    J = (policy.get("discount_rate") or 0) / 100
+    E = policy.get("coupon_amount", 0)
+    P = (policy.get("reward_rate") or 0) / 100
+    commission_base = policy.get("commission_base", "pre_discount")
+    M = E
+    R = shipping_absorbed
+    G = cost_a * margin_c + E + shipping_absorbed
+    V = target_v_pct / 100
+
+    if commission_base == "pre_discount":
+        coef = (1 - J) * (1 - P) - fee_rate - V * (1 - J)
+    else:
+        coef = (1 - J) * (1 - fee_rate - P - V)
+
+    if coef <= 1e-9:
+        return {
+            "h_raw": None,
+            "h": None,
+            "status": "error_v_unreachable",
+            "forward": None,
+        }
+
+    h_raw = (M + cost_a + R) / (G * coef)
+
+    status = "ok"
+    h_clamped = h_raw
+    if h_raw < min_h:
+        h_clamped = min_h
+        status = "clamped_min"
+    elif h_raw > max_h:
+        h_clamped = max_h
+        status = "clamped_max"
+
+    h_final = round(h_clamped, round_h)
+    fwd = forward_calc(cost_a, margin_c, h_final, policy, shipping_absorbed)
+
+    return {
+        "h_raw": round(h_raw, round_h + 2),
+        "h": h_final,
+        "status": status,
+        "forward": fwd,
+    }
+
+
 def batch_solve(
     products: list[dict[str, Any]],
     policy: dict[str, Any],
