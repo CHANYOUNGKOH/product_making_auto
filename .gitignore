@@ -138,3 +138,6 @@ my_images_repo/
 # 오너클랜 인증 정보 (비밀번호 포함)
 # -------------------------------------------
 godomall_register/ownerclan_config.json
+
+# Git worktrees (subagent-driven-development)
+.worktrees/
