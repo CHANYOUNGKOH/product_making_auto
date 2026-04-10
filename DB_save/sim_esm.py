@@ -37,6 +37,21 @@ POLICY_B = {                        # 무배, J=61%
 SHIPPING_A = 0       # 유배: 구매자 별도 부담
 SHIPPING_B = 3000    # 무배: 판매자 흡수
 
+# ─── 무배B 전용 V% 밴드 (C=1.5 + max_h=5.0 기준 달성가능 범위 내 선형) ────────
+# 배송비(3,000원) 이하 원가 구간은 유배보다 낮은 목표로 선형 증가
+BANDS_B_NORMAL = [
+    (100,    5), (300,    6), (500,    7), (1000,   9),
+    (2000,  12), (3000,  14), (5000,  15), (10000, 12),
+    (30000, 10), (50000,  8), (100000, 6), (200000, 5),
+    (999999999, 5),
+]
+BANDS_B_AD = [
+    (100,    5), (300,    7), (500,    9), (1000,  11),
+    (2000,  13), (3000,  15), (5000,  18), (10000, 15),
+    (30000, 13), (50000, 11), (100000,10), (200000,10),
+    (999999999, 10),
+]
+
 # ─── 샘플 상품 (28개) ────────────────────────────────────────────────────────
 COSTS = [
     50, 100, 150, 200, 300, 400, 500,
@@ -63,26 +78,28 @@ THIN = Border(
 )
 
 # 컬럼 정의
-# col:  1          2       3          4        5        6    7          8           9           10          11      12           13      14      15        16           17
+# col:  1      2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18   19   20
 BASE_COLS = [
-    ("상품코드",       14),
-    ("A 원가",        10),
-    ("C 마진배수",     10),
-    ("J 할인율",        8),
-    ("배송비흡수",     10),
-    ("G",             12),
-    ("H 판매가율",     10),
-    ("I 마켓등록가",   14),
-    ("L 할인후가격",   14),
-    ("N 마켓수수료",   14),
-    ("M 쿠폰",         9),
-    ("Q 스마일캐시",   12),
-    ("O 입금액",       12),
-    ("S 영업이익",     12),
-    ("target",         10),
-    ("V 매출대비%",    10),
-    ("마켓등록가(10원)", 16),
-    ("상태",           12),
+    ("상품코드",          14),
+    ("A 원가",           10),
+    ("C 마진배수",        10),
+    ("J 할인율",           8),
+    ("배송비흡수",        10),
+    ("G",                12),
+    ("H 판매가율",        10),
+    ("I 마켓등록가",      14),
+    ("L 할인후가격",      14),
+    ("N 마켓수수료",      14),
+    ("M 쿠폰",            9),
+    ("Q 스마일캐시",      12),
+    ("O 입금액",          12),
+    ("S 영업이익",        12),
+    ("target",            10),
+    ("V 매출대비%",       10),
+    ("S/A 원가대비이익",  14),  # S ÷ 원가
+    ("L/A 원가대비매출",  14),  # L ÷ 원가
+    ("마켓등록가(10원)",  16),
+    ("상태",              12),
 ]
 
 FMT_INT = "#,##0"
@@ -102,17 +119,18 @@ def _setup_headers(ws, fill: PatternFill) -> None:
 
 
 def _write_row(ws, row_idx: int, row: list, status: str) -> None:
-    # col: 1=코드 2=원가 3=C 4=J 5=배송 6=G 7=H 8=I 9=L 10=N 11=M 12=Q 13=O 14=S 15=target 16=V% 17=등록가10 18=상태
+    # col: 1=코드 2=원가 3=C 4=J 5=배송 6=G 7=H 8=I 9=L 10=N 11=M 12=Q 13=O 14=S
+    #      15=target 16=V% 17=S/A 18=L/A 19=등록가10 20=상태
     for col_idx, val in enumerate(row, 1):
         c = ws.cell(row=row_idx, column=col_idx, value=val)
         c.border = THIN
-        if col_idx in (2, 5, 6, 8, 9, 10, 11, 12, 13, 14, 17):
+        if col_idx in (2, 5, 6, 8, 9, 10, 11, 12, 13, 14, 19):
             c.number_format = FMT_INT
         elif col_idx in (3, 7):
             c.number_format = FMT_2DP
-        elif col_idx in (4, 15, 16):
+        elif col_idx in (4, 15, 16, 17, 18):
             c.number_format = FMT_PCT
-        if status not in ("ok",) and col_idx in (7, 18):
+        if status not in ("ok",) and col_idx in (7, 20):
             c.fill = CLAMP_FILL
 
 
@@ -125,7 +143,9 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
     round_mode = strategy.get("round_mode", "nearest")
     bands     = strategy["bands"]
 
+    from DB_save.price_engine import forward_calc
     row_idx = 2
+    prev_I = 0.0
     for prod in PRODUCTS:
         cost_a = prod["cost_a"]
         target_s = _resolve_target_s(cost_a, bands)
@@ -137,17 +157,33 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
         )
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
+
+        # I 단조증가 보장
+        cur_I = fwd.get("I", 0) or 0
+        if cur_I < prev_I and sol["status"] == "ok":
+            G = fwd.get("G", 0) or 1
+            h_min_needed = round(prev_I / G + 10 ** (-round_h), round_h)
+            h_min_needed = min(h_min_needed, max_h)
+            fwd = forward_calc(cost_a, used_c, h_min_needed, policy, shipping)
+            h = h_min_needed
+
         V_pct = fwd.get("revenue_ratio", 0) or 0
+        L = fwd.get("L", 0) or 0
+        S = fwd.get("S", 0) or 0
+        prev_I = fwd.get("I", 0) or 0
+        sa = (S / cost_a) if cost_a else 0
+        la = (L / cost_a) if cost_a else 0
 
         row = [
             prod["code"], cost_a, used_c,
             policy["discount_rate"] / 100,
             shipping,
             fwd.get("G", 0), h,
-            fwd.get("I", 0), fwd.get("L", 0),
+            fwd.get("I", 0), L,
             fwd.get("N", 0), policy.get("coupon_amount", 0),
-            fwd.get("Q", 0), fwd.get("O", 0), fwd.get("S", 0),
+            fwd.get("Q", 0), fwd.get("O", 0), S,
             target_s, V_pct / 100,
+            sa, la,
             fwd.get("market_price", 0), sol["status"],
         ]
         _write_row(ws, row_idx, row, sol["status"])
@@ -155,15 +191,18 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
         row_idx += 1
 
 
-def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
+def _fill_v(ws, strategy: dict, policy: dict, shipping: float,
+            bands_override: list | None = None) -> None:
     """일반판매/광고전략: v_percent."""
     margin_c = strategy["margin_c"]
     min_h    = strategy["min_h"]
     max_h    = strategy["max_h"]
     round_h  = strategy["round_h"]
-    bands    = strategy["bands"]
+    bands    = bands_override if bands_override is not None else strategy["bands"]
 
+    from DB_save.price_engine import forward_calc
     row_idx = 2
+    prev_I = 0.0  # I 단조증가 보장용
     for prod in PRODUCTS:
         cost_a   = prod["cost_a"]
         target_v = _resolve_target_s(cost_a, bands)
@@ -175,17 +214,34 @@ def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
         )
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
+
+        # I 단조증가 보장: 이전 행 I보다 낮으면 H를 올려서 재계산
+        cur_I = fwd.get("I", 0) or 0
+        if cur_I < prev_I and sol["status"] == "ok":
+            # prev_I를 달성하는 최소 H를 역산
+            G = fwd.get("G", 0) or 1
+            h_min_needed = round(prev_I / G + 10 ** (-round_h), round_h)
+            h_min_needed = min(h_min_needed, max_h)
+            fwd = forward_calc(cost_a, used_c, h_min_needed, policy, shipping)
+            h = h_min_needed
+
         V_pct = fwd.get("revenue_ratio", 0) or 0
+        L = fwd.get("L", 0) or 0
+        S = fwd.get("S", 0) or 0
+        prev_I = fwd.get("I", 0) or 0
+        sa = (S / cost_a) if cost_a else 0
+        la = (L / cost_a) if cost_a else 0
 
         row = [
             prod["code"], cost_a, used_c,
             policy["discount_rate"] / 100,
             shipping,
             fwd.get("G", 0), h,
-            fwd.get("I", 0), fwd.get("L", 0),
+            fwd.get("I", 0), L,
             fwd.get("N", 0), policy.get("coupon_amount", 0),
-            fwd.get("Q", 0), fwd.get("O", 0), fwd.get("S", 0),
+            fwd.get("Q", 0), fwd.get("O", 0), S,
             target_v / 100, V_pct / 100,
+            sa, la,
             fwd.get("market_price", 0), sol["status"],
         ]
         _write_row(ws, row_idx, row, sol["status"])
@@ -237,20 +293,20 @@ def main(market: str = "옥션") -> None:
     _setup_headers(ws2, HDR_BLUE)
     _fill_v(ws2, strat_norm, POLICY_A, SHIPPING_A)
 
-    # Sheet 3: 일반판매전략 B타입
+    # Sheet 3: 일반판매전략 B타입 (무배 전용 밴드)
     ws3 = wb.create_sheet("일반판매(무배B)")
     _setup_headers(ws3, HDR_LBLUE)
-    _fill_v(ws3, strat_norm, POLICY_B, SHIPPING_B)
+    _fill_v(ws3, strat_norm, POLICY_B, SHIPPING_B, bands_override=BANDS_B_NORMAL)
 
     # Sheet 4: 광고전략 A타입
     ws4 = wb.create_sheet("광고(유배A)")
     _setup_headers(ws4, HDR_GREEN)
     _fill_v(ws4, strat_ad, POLICY_A, SHIPPING_A)
 
-    # Sheet 5: 광고전략 B타입
+    # Sheet 5: 광고전략 B타입 (무배 전용 밴드)
     ws5 = wb.create_sheet("광고(무배B)")
     _setup_headers(ws5, HDR_LGREEN)
-    _fill_v(ws5, strat_ad, POLICY_B, SHIPPING_B)
+    _fill_v(ws5, strat_ad, POLICY_B, SHIPPING_B, bands_override=BANDS_B_AD)
 
     _add_policy_sheet(wb, market, [
         ("최저가(유배A)",   strat_low,  POLICY_A, SHIPPING_A),
