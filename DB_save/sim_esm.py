@@ -24,15 +24,15 @@ POLICY_A = {                        # 유배, J=2%
     "commission_rate": 16.5,
     "commission_base": "pre_discount",
     "discount_rate": 2.0,
-    "coupon_amount": 0,
-    "reward_rate": 0,
+    "coupon_amount": 100,
+    "reward_rate": 0.5,
 }
 POLICY_B = {                        # 무배, J=61%
     "commission_rate": 16.5,
     "commission_base": "pre_discount",
     "discount_rate": 61.0,
-    "coupon_amount": 0,
-    "reward_rate": 0,
+    "coupon_amount": 100,
+    "reward_rate": 0.5,
 }
 SHIPPING_A = 0       # 유배: 구매자 별도 부담
 SHIPPING_B = 3000    # 무배: 판매자 흡수
@@ -63,6 +63,7 @@ THIN = Border(
 )
 
 # 컬럼 정의
+# col:  1          2       3          4        5        6    7          8           9           10          11      12           13      14      15        16           17
 BASE_COLS = [
     ("상품코드",       14),
     ("A 원가",        10),
@@ -74,6 +75,8 @@ BASE_COLS = [
     ("I 마켓등록가",   14),
     ("L 할인후가격",   14),
     ("N 마켓수수료",   14),
+    ("M 쿠폰",         9),
+    ("Q 스마일캐시",   12),
     ("O 입금액",       12),
     ("S 영업이익",     12),
     ("target",         10),
@@ -99,16 +102,17 @@ def _setup_headers(ws, fill: PatternFill) -> None:
 
 
 def _write_row(ws, row_idx: int, row: list, status: str) -> None:
+    # col: 1=코드 2=원가 3=C 4=J 5=배송 6=G 7=H 8=I 9=L 10=N 11=M 12=Q 13=O 14=S 15=target 16=V% 17=등록가10 18=상태
     for col_idx, val in enumerate(row, 1):
         c = ws.cell(row=row_idx, column=col_idx, value=val)
         c.border = THIN
-        if col_idx in (2, 5, 6, 8, 9, 10, 11, 12, 15):
+        if col_idx in (2, 5, 6, 8, 9, 10, 11, 12, 13, 14, 17):
             c.number_format = FMT_INT
         elif col_idx in (3, 7):
             c.number_format = FMT_2DP
-        elif col_idx in (4, 13, 14):
+        elif col_idx in (4, 15, 16):
             c.number_format = FMT_PCT
-        if status not in ("ok",) and col_idx in (7, 16):
+        if status not in ("ok",) and col_idx in (7, 18):
             c.fill = CLAMP_FILL
 
 
@@ -121,7 +125,8 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
     round_mode = strategy.get("round_mode", "nearest")
     bands     = strategy["bands"]
 
-    for row_idx, prod in enumerate(PRODUCTS, 2):
+    row_idx = 2
+    for prod in PRODUCTS:
         cost_a = prod["cost_a"]
         target_s = _resolve_target_s(cost_a, bands)
         sol = solve_h(
@@ -129,6 +134,8 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
             target_s=target_s, shipping_absorbed=shipping,
             min_h=min_h, max_h=max_h, round_h=round_h, round_mode=round_mode,
         )
+        if sol["status"] != "ok":
+            continue
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
         V_pct = fwd.get("revenue_ratio", 0) or 0
@@ -139,11 +146,14 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
             shipping,
             fwd.get("G", 0), h,
             fwd.get("I", 0), fwd.get("L", 0),
-            fwd.get("N", 0), fwd.get("O", 0), fwd.get("S", 0),
+            fwd.get("N", 0), policy.get("coupon_amount", 0),
+            fwd.get("Q", 0), fwd.get("O", 0), fwd.get("S", 0),
             target_s, V_pct / 100,
             fwd.get("market_price", 0), sol["status"],
         ]
         _write_row(ws, row_idx, row, sol["status"])
+        ws.cell(row=row_idx, column=15).number_format = FMT_INT  # target=원화
+        row_idx += 1
 
 
 def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
@@ -154,7 +164,8 @@ def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
     round_h  = strategy["round_h"]
     bands    = strategy["bands"]
 
-    for row_idx, prod in enumerate(PRODUCTS, 2):
+    row_idx = 2
+    for prod in PRODUCTS:
         cost_a   = prod["cost_a"]
         target_v = _resolve_target_s(cost_a, bands)
         sol = solve_h_by_v(
@@ -162,6 +173,8 @@ def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
             target_v_pct=target_v, shipping_absorbed=shipping,
             min_h=min_h, max_h=max_h, round_h=round_h,
         )
+        if sol["status"] != "ok":
+            continue
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
         V_pct = fwd.get("revenue_ratio", 0) or 0
@@ -172,11 +185,13 @@ def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
             shipping,
             fwd.get("G", 0), h,
             fwd.get("I", 0), fwd.get("L", 0),
-            fwd.get("N", 0), fwd.get("O", 0), fwd.get("S", 0),
+            fwd.get("N", 0), policy.get("coupon_amount", 0),
+            fwd.get("Q", 0), fwd.get("O", 0), fwd.get("S", 0),
             target_v / 100, V_pct / 100,
             fwd.get("market_price", 0), sol["status"],
         ]
         _write_row(ws, row_idx, row, sol["status"])
+        row_idx += 1
 
 
 def _add_policy_sheet(wb, market: str, strategies: list) -> None:
