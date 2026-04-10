@@ -39,9 +39,9 @@
       "commission_base": "post_discount",
       "default_discount_rate": 50,
       "coupon_amount": 100,
-      "reward_rate": 0.5,
+      "reward_rate": 15,
       "status": "registering",
-      "note": "할인율 70% 미만 유지 필요. 첫구매/재구매 쿠폰 15%는 별도 정책 (스마일캐시 변수 향후 도입)"
+      "note": "할인율 70% 미만 유지 필요. 스마일캐시 15% 판매가에 선반영 (고객 적용 가정)"
     },
     "롯데온": {
       "commission_rate": 16.5,
