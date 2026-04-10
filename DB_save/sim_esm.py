@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from DB_save.price_engine import solve_h, solve_h_by_v, _resolve_target_s
+from DB_save.price_engine import solve_h, solve_h_by_v, solve_auto_c, _resolve_target_s
 from DB_save.pricing_strategies import get_pricing_strategy
 
 # ─── 정책 (A타입 유배 / B타입 무배) ─────────────────────────────────────────
@@ -129,19 +129,18 @@ def _fill_lowest(ws, strategy: dict, policy: dict, shipping: float) -> None:
     for prod in PRODUCTS:
         cost_a = prod["cost_a"]
         target_s = _resolve_target_s(cost_a, bands)
-        sol = solve_h(
+        sol, used_c = solve_auto_c(
             cost_a=cost_a, margin_c=margin_c, policy=policy,
-            target_s=target_s, shipping_absorbed=shipping,
+            target=target_s, shipping_absorbed=shipping,
             min_h=min_h, max_h=max_h, round_h=round_h, round_mode=round_mode,
+            metric="absolute_s",
         )
-        if sol["status"] != "ok":
-            continue
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
         V_pct = fwd.get("revenue_ratio", 0) or 0
 
         row = [
-            prod["code"], cost_a, margin_c,
+            prod["code"], cost_a, used_c,
             policy["discount_rate"] / 100,
             shipping,
             fwd.get("G", 0), h,
@@ -168,19 +167,18 @@ def _fill_v(ws, strategy: dict, policy: dict, shipping: float) -> None:
     for prod in PRODUCTS:
         cost_a   = prod["cost_a"]
         target_v = _resolve_target_s(cost_a, bands)
-        sol = solve_h_by_v(
+        sol, used_c = solve_auto_c(
             cost_a=cost_a, margin_c=margin_c, policy=policy,
-            target_v_pct=target_v, shipping_absorbed=shipping,
+            target=target_v, shipping_absorbed=shipping,
             min_h=min_h, max_h=max_h, round_h=round_h,
+            metric="v_percent",
         )
-        if sol["status"] != "ok":
-            continue
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
         V_pct = fwd.get("revenue_ratio", 0) or 0
 
         row = [
-            prod["code"], cost_a, margin_c,
+            prod["code"], cost_a, used_c,
             policy["discount_rate"] / 100,
             shipping,
             fwd.get("G", 0), h,

@@ -324,6 +324,74 @@ def solve_h_by_v(
     }
 
 
+def solve_auto_c(
+    cost_a: float,
+    margin_c: float,
+    policy: dict[str, Any],
+    target: float,
+    shipping_absorbed: float = 0,
+    min_h: float = 1.0,
+    max_h: float = 3.5,
+    round_h: int = 2,
+    round_mode: str = "nearest",
+    metric: str = "absolute_s",
+    c_min: float = 0.5,
+    c_max: float = 30.0,
+) -> tuple[dict[str, Any], float]:
+    """solve_h / solve_h_by_v 래퍼. clamped 시 margin_c를 이진탐색으로 자동 조정.
+
+    Returns:
+        (sol dict, used_margin_c)
+    """
+    def _try(c: float) -> dict:
+        if metric == "absolute_s":
+            return solve_h(
+                cost_a=cost_a, margin_c=c, policy=policy,
+                target_s=target, shipping_absorbed=shipping_absorbed,
+                min_h=min_h, max_h=max_h, round_h=round_h, round_mode=round_mode,
+            )
+        else:
+            return solve_h_by_v(
+                cost_a=cost_a, margin_c=c, policy=policy,
+                target_v_pct=target, shipping_absorbed=shipping_absorbed,
+                min_h=min_h, max_h=max_h, round_h=round_h,
+            )
+
+    sol = _try(margin_c)
+    if sol["status"] == "ok":
+        return sol, margin_c
+
+    if sol["status"] == "clamped_max":
+        # H_raw 너무 큼 → C를 키워서 G를 높이면 H_raw 감소
+        c_lo, c_hi = margin_c, c_max
+    elif sol["status"] == "clamped_min":
+        # H_raw 너무 작음 → C를 줄여서 G를 낮추면 H_raw 증가
+        c_lo, c_hi = c_min, margin_c
+    else:
+        return sol, margin_c  # error_* 계열은 C 조정으로 해결 불가
+
+    best_sol, best_c = sol, margin_c
+    for _ in range(50):
+        c_mid = (c_lo + c_hi) / 2
+        if c_hi - c_lo < 1e-6:
+            break
+        s = _try(c_mid)
+        if s["status"] == "ok":
+            best_sol, best_c = s, c_mid
+            # ok 구간의 경계를 좁혀나감
+            if sol["status"] == "clamped_max":
+                c_hi = c_mid   # ok 유지하면서 C를 최소화
+            else:
+                c_lo = c_mid   # ok 유지하면서 C를 최대화
+        elif s["status"] == "clamped_max":
+            c_lo = c_mid       # C가 아직 작음 → 키워야
+        else:
+            # clamped_min 또는 error → C가 너무 큼
+            c_hi = c_mid
+
+    return best_sol, round(best_c, 4)
+
+
 def batch_solve(
     products: list[dict[str, Any]],
     policy: dict[str, Any],
