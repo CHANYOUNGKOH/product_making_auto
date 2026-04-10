@@ -281,20 +281,23 @@ def main() -> None:
     print(f"Products: {len(PRODUCTS)}개")
 
     # ── 콘솔 요약 ──
-    print("\n=== 최저가전략 (absolute_s) ===")
-    print(f"{'code':<10}{'cost':>8}{'target_S':>10}{'H_raw':>7}{'H':>6}"
-          f"{'I':>8}{'L':>8}{'S':>8}{'V%':>7}  status")
-    print("-" * 80)
+    rh = strat_low["round_h"]
+    print(f"\n=== 최저가전략 (absolute_s, round_h={rh}) ===")
+    print(f"{'code':<10}{'cost':>8}{'target_S':>10}{'H_raw':>8}{'H':>7}"
+          f"{'I':>9}{'L':>9}{'S':>9}{'V%':>7}  status")
+    print("-" * 85)
     for prod in PRODUCTS:
         cost_a = prod["cost_a"]
         ts = _resolve_target_s(cost_a, strat_low["bands"])
         sol = solve_h(cost_a=cost_a, margin_c=strat_low["margin_c"], policy=POLICY,
-                      target_s=ts, min_h=strat_low["min_h"], max_h=strat_low["max_h"])
+                      target_s=ts, min_h=strat_low["min_h"], max_h=strat_low["max_h"],
+                      round_h=rh)
         fwd = sol["forward"] or {}
+        h_disp = f"{sol['h'] or 0:.{rh}f}"
         print(f"{prod['code']:<10}{cost_a:>8,.0f}{ts:>10,.0f}"
-              f"{sol['h_raw'] or 0:>7.3f}{sol['h'] or 0:>6.2f}"
-              f"{fwd.get('I',0):>8,.0f}{fwd.get('L',0):>8,.0f}"
-              f"{fwd.get('S',0):>8,.0f}{fwd.get('revenue_ratio',0):>6.1f}%"
+              f"{sol['h_raw'] or 0:>8.4f}{h_disp:>7}"
+              f"{fwd.get('I',0):>9,.0f}{fwd.get('L',0):>9,.0f}"
+              f"{fwd.get('S',0):>9,.0f}{fwd.get('revenue_ratio',0):>6.1f}%"
               f"  {sol['status']}")
 
 
