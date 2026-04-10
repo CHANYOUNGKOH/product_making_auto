@@ -12,6 +12,7 @@
 | [11번가](./11st.md) | 17.5% | pre_discount | 50% 고정 | [11st.md](./11st.md) |
 | [스마트스토어](./smartstore.md) | 6.5% | post_discount | 50% 고정 | [smartstore.md](./smartstore.md) |
 | [고도몰](./godomall.md) | 4.0% | post_discount | 가격대별 4단계 | [godomall.md](./godomall.md) |
+| [ESM (옥션/지마켓)](./esm.md) | 16.5% | pre_discount | A=2% / B=61% | [esm.md](./esm.md) |
 
 ---
 
@@ -40,3 +41,5 @@
 |------|---------|-------------|
 | 스마트스토어 | `DB_save/sim_smartstore.py` | `DB_save/스마트스토어_3전략_시뮬_v7.xlsx` |
 | 고도몰 | `DB_save/sim_godomall.py` | `DB_save/고도몰_3전략_시뮬_v2.xlsx` |
+| 옥션 | `DB_save/sim_esm.py` | `DB_save/옥션_3전략_시뮬_v1.xlsx` |
+| 지마켓 | `DB_save/sim_esm.py` | `DB_save/지마켓_3전략_시뮬_v1.xlsx` |
