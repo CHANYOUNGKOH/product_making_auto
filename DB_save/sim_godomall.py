@@ -299,5 +299,67 @@ def main() -> None:
               f"  {sol['status']}")
 
 
+def _print_boundary_table(strategies: dict) -> None:
+    """도매가(원가) 구간 경계점에서 각 전략별 등록가(I) 범위 출력."""
+    # J 구간 경계: 원가가 바뀌는 지점 (직전/직후)
+    # discount_bands: [5000→35%], [30000→28%], [100000→18%], [초과→10%]
+    zones = [
+        ("35%", 50,       5_000,   "≤5,000"),
+        ("28%", 5_001,   30_000,   "5,001~30,000"),
+        ("18%", 30_001, 100_000,   "30,001~100,000"),
+        ("10%", 100_001, 500_000,  ">100,000"),
+    ]
+
+    strat_low  = strategies["lowest_price"]
+    strat_norm = strategies["normal_sale"]
+    strat_ad   = strategies["cpc_ad"]
+
+    def get_I(cost_a, strat, metric):
+        policy = _make_policy(cost_a, strat["discount_bands"])
+        if metric == "absolute_s":
+            sol = solve_h(
+                cost_a=cost_a, margin_c=strat["margin_c"], policy=policy,
+                target_s=0, min_h=strat["min_h"], max_h=strat["max_h"],
+                round_h=strat["round_h"], round_mode=strat.get("round_mode", "nearest"),
+            )
+        else:
+            target_v = _resolve_target_s(cost_a, strat["bands"])
+            sol = solve_h_by_v(
+                cost_a=cost_a, margin_c=strat["margin_c"], policy=policy,
+                target_v_pct=target_v, min_h=strat["min_h"], max_h=strat["max_h"],
+                round_h=strat["round_h"], round_mode=strat.get("round_mode", "nearest"),
+            )
+        fwd = sol["forward"] or {}
+        return int(fwd.get("market_price", 0))
+
+    print("\n" + "=" * 90)
+    print("=== 도매가(원가) 구간별 등록가(I) 범위 - 고도몰 쿠폰 설정 기준 ===")
+    print("=" * 90)
+    print(f"{'J':>4}  {'원가 구간':>16}  {'등록가 기준':>8}  "
+          f"{'최저가전략':>16}  {'일반판매전략':>16}  {'광고전략':>16}")
+    print("-" * 90)
+
+    for j_pct, cost_min, cost_max, zone_label in zones:
+        for boundary, label in [(cost_min, "최소"), (cost_max, "최대")]:
+            i_low  = get_I(boundary, strat_low,  "absolute_s")
+            i_norm = get_I(boundary, strat_norm, "v_percent")
+            i_ad   = get_I(boundary, strat_ad,   "v_percent")
+            print(f"{j_pct:>4}  {zone_label:>16}  {label:>4}(원가{boundary:>7,})"
+                  f"  {i_low:>16,}  {i_norm:>16,}  {i_ad:>16,}")
+        print()
+
+    print("=" * 90)
+    print("※ 고도몰 쿠폰 설정 시 각 전략의 '최대 등록가' 기준으로 구간 상한선 설정 권장")
+    print("  (전략 혼용 시 광고전략이 가장 높은 I를 가지므로 광고전략 기준 상한선 사용)")
+
+
 if __name__ == "__main__":
     main()
+    strat_low  = get_pricing_strategy("고도몰", "lowest_price")
+    strat_norm = get_pricing_strategy("고도몰", "normal_sale")
+    strat_ad   = get_pricing_strategy("고도몰", "cpc_ad")
+    _print_boundary_table({
+        "lowest_price": strat_low,
+        "normal_sale":  strat_norm,
+        "cpc_ad":       strat_ad,
+    })
