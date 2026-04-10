@@ -122,7 +122,7 @@ def get_pricing_strategy(market_name: str, strategy_id: str) -> dict[str, Any]:
     meta = get_strategy_meta(strategy_id)
     params = market_data[strategy_id]
 
-    return {
+    result = {
         "strategy_id": strategy_id,
         "label_ko": meta["label_ko"],
         "metric": meta["metric"],
@@ -133,6 +133,9 @@ def get_pricing_strategy(market_name: str, strategy_id: str) -> dict[str, Any]:
         "round_h": params["round_h"],
         "bands": [tuple(b) for b in params["bands"]],
     }
+    if "discount_bands" in params:
+        result["discount_bands"] = [tuple(b) for b in params["discount_bands"]]
+    return result
 
 
 def list_strategies() -> list[dict[str, Any]]:

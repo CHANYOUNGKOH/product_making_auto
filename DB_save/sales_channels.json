@@ -103,10 +103,10 @@
       "commission_rate": 4.0,
       "commission_base": "post_discount",
       "default_discount_rate": null,
-      "coupon_amount": 0,
+      "coupon_amount": 50,
       "reward_rate": 0,
       "status": "pending",
-      "note": "할인율 개념 없음. 실결제금액 기준 수수료. 자체쿠폰정책: 가격대별 4단계, 위탁주문가 이상만 쿠폰 발행"
+      "note": "자체쿠폰정책: 가격대별 4단계(원가≤5000:35%, ≤30000:28%, ≤100000:18%, 초과:10%), 위탁주문가 이상만 쿠폰 발행"
     }
   },
   "owners": {
