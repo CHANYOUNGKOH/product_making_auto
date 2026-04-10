@@ -129,6 +129,7 @@ def solve_h(
     min_h: float = 1.0,
     max_h: float = 3.5,
     round_h: int = 2,
+    round_mode: str = "nearest",
 ) -> dict[str, Any]:
     """Reverse calculation: given target S (operating profit), solve for H.
 
@@ -209,7 +210,10 @@ def solve_h(
         h_clamped = max_h
         status = "clamped_max"
 
-    h_final = round(h_clamped, round_h)
+    if round_mode == "ceil":
+        h_final = math.ceil(h_clamped * 10 ** round_h) / 10 ** round_h
+    else:
+        h_final = round(h_clamped, round_h)
 
     fwd = forward_calc(cost_a, margin_c, h_final, policy, shipping_absorbed)
 
@@ -230,6 +234,7 @@ def solve_h_by_v(
     min_h: float = 1.0,
     max_h: float = 4.0,
     round_h: int = 2,
+    round_mode: str = "nearest",
 ) -> dict[str, Any]:
     """역방향 계산: 목표 V (매출대비%) → H 역산.
 
@@ -305,7 +310,10 @@ def solve_h_by_v(
         h_clamped = max_h
         status = "clamped_max"
 
-    h_final = round(h_clamped, round_h)
+    if round_mode == "ceil":
+        h_final = math.ceil(h_clamped * 10 ** round_h) / 10 ** round_h
+    else:
+        h_final = round(h_clamped, round_h)
     fwd = forward_calc(cost_a, margin_c, h_final, policy, shipping_absorbed)
 
     return {
@@ -326,6 +334,7 @@ def batch_solve(
     min_h: float = 1.0,
     max_h: float = 3.5,
     round_h: int = 2,
+    round_mode: str = "nearest",
 ) -> list[dict[str, Any]]:
     """Batch processing: solve H for each product using cost-based target bands.
 
@@ -365,12 +374,14 @@ def batch_solve(
                 cost_a, margin_c, policy, band_value,
                 shipping_absorbed=shipping_absorbed,
                 min_h=min_h, max_h=max_h, round_h=round_h,
+                round_mode=round_mode,
             )
         else:  # absolute_s
             result = solve_h(
                 cost_a, margin_c, policy, band_value,
                 shipping_absorbed=shipping_absorbed,
                 min_h=min_h, max_h=max_h, round_h=round_h,
+                round_mode=round_mode,
             )
 
         row = {

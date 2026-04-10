@@ -135,6 +135,8 @@ def get_pricing_strategy(market_name: str, strategy_id: str) -> dict[str, Any]:
     }
     if "discount_bands" in params:
         result["discount_bands"] = [tuple(b) for b in params["discount_bands"]]
+    if "round_mode" in params:
+        result["round_mode"] = params["round_mode"]
     return result
 
 

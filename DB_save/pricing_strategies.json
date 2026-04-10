@@ -57,6 +57,7 @@
         "min_h": 0.8,
         "max_h": 3.5,
         "round_h": 3,
+        "round_mode": "ceil",
         "bands": [
           [999999999, 0]
         ],
@@ -66,7 +67,7 @@
       },
       "normal_sale": {
         "margin_c": 1.5,
-        "min_h": 1.0,
+        "min_h": 0.8,
         "max_h": 4.0,
         "round_h": 2,
         "bands": [
@@ -80,7 +81,7 @@
       },
       "cpc_ad": {
         "margin_c": 1.5,
-        "min_h": 1.0,
+        "min_h": 0.8,
         "max_h": 4.0,
         "round_h": 2,
         "bands": [

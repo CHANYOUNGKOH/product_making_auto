@@ -125,11 +125,12 @@ def _write_row(ws, row_idx: int, row: list, status: str) -> None:
 
 def _fill_lowest_price(ws, strategy: dict) -> None:
     """최저가전략: absolute_s metric, target_S=0."""
-    margin_c      = strategy["margin_c"]
-    min_h         = strategy["min_h"]
-    max_h         = strategy["max_h"]
-    round_h       = strategy["round_h"]
-    bands         = strategy["bands"]
+    margin_c       = strategy["margin_c"]
+    min_h          = strategy["min_h"]
+    max_h          = strategy["max_h"]
+    round_h        = strategy["round_h"]
+    round_mode     = strategy.get("round_mode", "nearest")
+    bands          = strategy["bands"]
     discount_bands = strategy["discount_bands"]
     E = BASE_POLICY["coupon_amount"]
 
@@ -142,7 +143,7 @@ def _fill_lowest_price(ws, strategy: dict) -> None:
         sol = solve_h(
             cost_a=cost_a, margin_c=margin_c, policy=policy,
             target_s=target_s, shipping_absorbed=0,
-            min_h=min_h, max_h=max_h, round_h=round_h,
+            min_h=min_h, max_h=max_h, round_h=round_h, round_mode=round_mode,
         )
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
@@ -176,6 +177,7 @@ def _fill_v_strategy(ws, strategy: dict) -> None:
     min_h          = strategy["min_h"]
     max_h          = strategy["max_h"]
     round_h        = strategy["round_h"]
+    round_mode     = strategy.get("round_mode", "nearest")
     bands          = strategy["bands"]
     discount_bands = strategy["discount_bands"]
     E = BASE_POLICY["coupon_amount"]
@@ -189,7 +191,7 @@ def _fill_v_strategy(ws, strategy: dict) -> None:
         sol = solve_h_by_v(
             cost_a=cost_a, margin_c=margin_c, policy=policy,
             target_v_pct=target_v, shipping_absorbed=0,
-            min_h=min_h, max_h=max_h, round_h=round_h,
+            min_h=min_h, max_h=max_h, round_h=round_h, round_mode=round_mode,
         )
         h   = sol["h"] or 0
         fwd = sol["forward"] or {}
@@ -286,7 +288,7 @@ def main() -> None:
         sol = solve_h(
             cost_a=cost_a, margin_c=strat_low["margin_c"], policy=policy,
             target_s=0, min_h=strat_low["min_h"], max_h=strat_low["max_h"],
-            round_h=rh,
+            round_h=rh, round_mode=strat_low.get("round_mode", "nearest"),
         )
         fwd = sol["forward"] or {}
         h_disp = f"{sol['h'] or 0:.{rh}f}"
