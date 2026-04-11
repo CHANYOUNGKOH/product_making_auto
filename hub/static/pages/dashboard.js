@@ -14,7 +14,9 @@ window.renderDashboard = async function(container) {
   `;
 
   try {
-    const stats = await fetch('/api/dashboard').then(r => r.json());
+    const r = await fetch('/api/dashboard');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const stats = await r.json();
     document.getElementById('s-total').textContent = stats.total_active.toLocaleString();
     document.getElementById('s-ship').textContent  = stats.shippable.toLocaleString();
     document.getElementById('s-proc').textContent  = stats.processed.toLocaleString();
@@ -22,6 +24,8 @@ window.renderDashboard = async function(container) {
     document.getElementById('s-sync').textContent  = sync;
   } catch (e) {
     console.error('대시보드 로드 실패:', e);
+    const grid = document.getElementById('stat-grid');
+    if (grid) grid.innerHTML = '<div class="stat-card" style="color:var(--red);grid-column:1/-1">데이터 로드 실패 — 새로고침 해주세요</div>';
   }
 
   document.getElementById('btn-sync').addEventListener('click', () => navigate('pipeline'));
