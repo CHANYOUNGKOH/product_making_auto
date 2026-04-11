@@ -2,12 +2,18 @@
 """Ownerclan -> Godomall converter helpers."""
 
 from pathlib import Path
+import sys
 import tempfile
 
 import pandas as pd
 from openpyxl import load_workbook
 
 from seo_alt_injector import inject_alt_into_html
+
+# price_engine 경로 (OC_ES_converter/scripts/ → 루트 2단계 위)
+_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 DEFAULT_GODOMALL_TEMPLATE = str(Path.home() / "Downloads" / "상품샘플파일.xlsx")
 
@@ -140,13 +146,71 @@ def build_option_block(row: pd.Series) -> dict:
     }
 
 
+def _calc_price_with_strategy(cost_a: float, strategy_id: str) -> tuple[int, float]:
+    """price_engine으로 고도몰 등록가와 할인율을 역산.
+
+    Args:
+        cost_a:      오너클랜 원가 (oc_price).
+        strategy_id: "lowest_price" | "normal_sale" | "cpc_ad"
+
+    Returns:
+        (market_price, discount_pct): 마켓등록가(10원단위), 할인율J(%)
+    """
+    from DB_save.price_engine import solve_auto_c, _resolve_target_s
+    from DB_save.pricing_strategies import get_pricing_strategy
+
+    if cost_a <= 0:
+        return int(cost_a), 0.0
+
+    strategy = get_pricing_strategy("고도몰", strategy_id)
+
+    # discount_bands → J (할인율) 결정
+    discount_bands = strategy.get("discount_bands", [[999999999, 10]])
+    J = float(_resolve_target_s(cost_a, discount_bands))
+
+    policy = {
+        "commission_rate": 4.0,
+        "commission_base": "post_discount",
+        "discount_rate": J,
+        "coupon_amount": 0,
+        "reward_rate": 0,
+    }
+
+    sol, _ = solve_auto_c(
+        cost_a=cost_a,
+        margin_c=strategy["margin_c"],
+        policy=policy,
+        target=_resolve_target_s(cost_a, strategy["bands"]),
+        shipping_absorbed=0,
+        min_h=strategy["min_h"],
+        max_h=strategy["max_h"],
+        round_h=strategy["round_h"],
+        round_mode=strategy.get("round_mode", "nearest"),
+        metric=strategy.get("metric", "absolute_s"),
+    )
+
+    fwd = sol.get("forward") or {}
+    market_price = fwd.get("market_price") or fwd.get("I") or int(cost_a)
+    return int(market_price), J
+
+
 def convert_ownerclan_to_godomall(
     oc_df: pd.DataFrame,
     category_code: str = GODOMALL_DEFAULTS["category_code"],
     brand_code: str = GODOMALL_DEFAULTS["brand_code"],
     delivery_sno: str = GODOMALL_DEFAULTS["deliverySno"],
+    strategy_id: str | None = None,
 ):
-    """Convert Ownerclan rows into Godomall sheet rows."""
+    """Convert Ownerclan rows into Godomall sheet rows.
+
+    Args:
+        oc_df:        오너클랜 형식 DataFrame.
+        category_code: 고도몰 카테고리 코드.
+        brand_code:   고도몰 브랜드 코드.
+        delivery_sno: 고도몰 배송 정책 번호.
+        strategy_id:  가격 전략 ID ("lowest_price" / "normal_sale" / "cpc_ad").
+                      None이면 오너클랜 원가를 판매가로 그대로 사용.
+    """
     rows = []
 
     for _, row in oc_df.iterrows():
@@ -156,6 +220,18 @@ def convert_ownerclan_to_godomall(
         detail_html = _safe_str(row.get("본문상세설명", ""))
         detail_html = inject_alt_into_html(detail_html, _safe_str(row.get("상품코드", "")))
         option_block = build_option_block(row)
+
+        # ── 가격 계산 ──────────────────────────────────────────────────────
+        if strategy_id and ownerclan_price > 0:
+            goods_price, discount_pct = _calc_price_with_strategy(
+                ownerclan_price, strategy_id
+            )
+            goods_discount_fl = "y"
+            goods_discount = discount_pct
+        else:
+            goods_price = ownerclan_price
+            goods_discount_fl = "n"
+            goods_discount = 0.0
 
         rows.append(
             {
@@ -172,7 +248,7 @@ def convert_ownerclan_to_godomall(
                 "origin_name": _safe_str(row.get("원산지", "")),
                 "search_word": _safe_str(row.get("키워드", "")),
                 "deliverySno": str(delivery_sno),
-                "goods_price": ownerclan_price,
+                "goods_price": goods_price,
                 "fixed_price": GODOMALL_DEFAULTS["fixed_price"],
                 "cost_price": ownerclan_price,
                 "option_yn": option_block["option_yn"],
@@ -204,8 +280,8 @@ def convert_ownerclan_to_godomall(
                 "stock_type": "y",
                 "mileage_type": "c",
                 "mileage_group": "all",
-                "goods_discount_fl": "n",
-                "goods_discount": 0.00,
+                "goods_discount_fl": goods_discount_fl,
+                "goods_discount": goods_discount,
                 "goods_discount_unit": "percent",
                 "fixed_sales": "option",
                 "sales_unit": 1,
