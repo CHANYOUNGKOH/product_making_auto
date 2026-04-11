@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Hub</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav id="sidebar">
+    <div class="sidebar-logo">Product Hub</div>
+    <div class="nav-group">
+      <div class="nav-label">Overview</div>
+      <a class="nav-item" data-page="dashboard" href="#">&#128202; 대시보드</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Data</div>
+      <a class="nav-item" data-page="products" href="#">&#128230; 상품 DB</a>
+      <a class="nav-item" data-page="stores" href="#">&#127962; 스토어 관리</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Processing</div>
+      <a class="nav-item" data-page="pipeline" href="#">&#9881;&#65039; 파이프라인</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Export</div>
+      <a class="nav-item" data-page="export" href="#">&#128717; 마켓 출고</a>
+    </div>
+  </nav>
+  <main id="content">
+    <div class="loading">로딩 중...</div>
+  </main>
+
+  <script src="/pages/dashboard.js"></script>
+  <script src="/pages/products.js"></script>
+  <script src="/pages/pipeline.js"></script>
+  <script src="/pages/export.js"></script>
+  <script src="/pages/stores.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
