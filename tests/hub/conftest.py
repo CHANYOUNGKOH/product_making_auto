@@ -1,7 +1,6 @@
 """공유 픽스처: 테스트 DB + FastAPI TestClient."""
 import os
 import sqlite3
-import tempfile
 import pytest
 from fastapi.testclient import TestClient
 
@@ -87,4 +86,6 @@ def client(test_db_path):
     """FastAPI TestClient (DB 경로 환경변수로 주입)."""
     os.environ["HUB_DB_PATH"] = test_db_path
     from hub.app import app
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
+    os.environ.pop("HUB_DB_PATH", None)
