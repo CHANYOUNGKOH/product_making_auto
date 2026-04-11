@@ -9,8 +9,12 @@ from typing import Any
 
 from hub.services.db_service import _conn
 
-# 생성된 파일 임시 저장소 (메모리: {file_id: path})
-_generated_files: dict[str, Path] = {}
+
+def _export_path(file_id: str) -> Path:
+    """파일 ID로 export 파일 경로를 계산한다."""
+    tmp_dir = Path(tempfile.gettempdir()) / "product_hub_exports"
+    tmp_dir.mkdir(exist_ok=True)
+    return tmp_dir / f"{file_id}.xlsx"
 
 
 def _get_strategy_policy(market: str, strategy_id: str) -> dict:
@@ -127,11 +131,8 @@ def run_export(
                 ])
 
         file_id = uuid.uuid4().hex
-        tmp_dir = Path(tempfile.gettempdir()) / "product_hub_exports"
-        tmp_dir.mkdir(exist_ok=True)
-        out_path = tmp_dir / f"{file_id}.xlsx"
+        out_path = _export_path(file_id)
         wb.save(str(out_path))
-        _generated_files[file_id] = out_path
 
         return {
             "file_id": file_id,
@@ -143,4 +144,6 @@ def run_export(
 
 
 def get_export_file(file_id: str) -> Path | None:
-    return _generated_files.get(file_id)
+    """파일 ID로 export 파일을 조회한다. 파일이 없으면 None 반환."""
+    p = _export_path(file_id)
+    return p if p.exists() else None

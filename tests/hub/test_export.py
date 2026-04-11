@@ -41,11 +41,11 @@ def test_dry_run_item_has_price_fields(client):
     }
     r = client.post("/api/export/dry-run", json=payload)
     data = r.json()
-    if data["items"]:
-        item = data["items"][0]
-        assert "상품코드" in item
-        assert "oc_price" in item
-        assert "sell_price" in item
+    assert data["items"], "가전/디지털>TV에 상품이 있어야 함 (W001)"
+    item = data["items"][0]
+    assert "상품코드" in item
+    assert "oc_price" in item
+    assert "sell_price" in item
 
 
 def test_dry_run_empty_categories_uses_all(client):
