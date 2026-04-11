@@ -234,3 +234,38 @@ def upsert_store(
                  updated_at = datetime('now', 'localtime')""",
             (alias, market, group_id, login_id, strategy),
         )
+
+
+def parse_stores_from_excel(file_bytes: bytes) -> list[dict]:
+    """
+    Market_id_pw.xlsx 바이트 → stores 목록 파싱.
+
+    '별칭', '마켓', '그룹' 헤더가 있는 시트를 찾아 파싱.
+    헤더가 없는 시트는 무시.
+    """
+    import io
+    import openpyxl
+
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
+    records = []
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            continue
+        header = [str(h).strip() if h else "" for h in rows[0]]
+        try:
+            alias_col = header.index("별칭")
+        except ValueError:
+            continue
+        market_col = header.index("마켓") if "마켓" in header else None
+        group_col  = header.index("그룹") if "그룹" in header else None
+
+        for row in rows[1:]:
+            alias = str(row[alias_col]).strip() if row[alias_col] else ""
+            if not alias or alias == "None":
+                continue
+            market = str(row[market_col]).strip() if market_col is not None and row[market_col] else ""
+            group  = str(row[group_col]).strip()  if group_col  is not None and row[group_col]  else ""
+            records.append({"alias": alias, "market": market, "group_id": group})
+    return records
