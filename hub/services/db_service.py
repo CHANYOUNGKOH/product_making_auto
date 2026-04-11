@@ -65,14 +65,22 @@ CREATE TABLE IF NOT EXISTS stores (
 
 
 def run_migrations(db_path: str | None = None) -> None:
-    """products에 hub 컬럼 추가 + stores 테이블 생성 (멱등)."""
+    """products에 hub 컬럼 추가 + stores 테이블 생성 (멱등).
+
+    products 테이블이 아직 없으면 컬럼 추가를 건너뜀.
+    (products 테이블은 oc_import.py가 최초 실행 시 생성)
+    """
     with _conn(db_path) as con:
         cur = con.cursor()
-        cur.execute("PRAGMA table_info(products)")
-        existing = {row["name"] for row in cur.fetchall()}
-        for col, col_type in _HUB_COLUMNS:
-            if col not in existing:
-                con.execute(f"ALTER TABLE products ADD COLUMN {col} {col_type}")
+        cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='products'"
+        )
+        if cur.fetchone():
+            cur.execute("PRAGMA table_info(products)")
+            existing = {row["name"] for row in cur.fetchall()}
+            for col, col_type in _HUB_COLUMNS:
+                if col not in existing:
+                    con.execute(f"ALTER TABLE products ADD COLUMN {col} {col_type}")
         con.execute(_STORES_DDL)
 
 
