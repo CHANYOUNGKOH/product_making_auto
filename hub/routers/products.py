@@ -1,7 +1,7 @@
 """상품 DB API."""
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from hub.services.db_service import get_products, get_categories
+from hub.services.db_service import get_categories, get_products
 
 router = APIRouter()
 
@@ -14,8 +14,11 @@ async def list_products(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=100, ge=1, le=500),
 ):
-    return get_products(q=q, category=category, quick_filter=quick_filter,
-                        page=page, per_page=per_page)
+    try:
+        return get_products(q=q, category=category, quick_filter=quick_filter,
+                            page=page, per_page=per_page)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/api/products/categories")

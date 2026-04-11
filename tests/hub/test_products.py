@@ -61,3 +61,16 @@ def test_get_categories(client):
     cats = r.json()
     assert isinstance(cats, list)
     assert "가전/디지털>TV" in cats
+
+
+def test_get_products_quick_filter_no_market(client):
+    """export_log이 빈 상품만 반환."""
+    r = client.get("/api/products?quick_filter=no_market")
+    data = r.json()
+    # W001/W002/W003 모두 export_log='[]' (seed에서 비어있음) → 3개
+    assert data["total"] == 3
+
+
+def test_get_products_unknown_quick_filter_returns_400(client):
+    r = client.get("/api/products?quick_filter=invalid_filter")
+    assert r.status_code == 400

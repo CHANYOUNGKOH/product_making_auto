@@ -82,7 +82,16 @@ async function refresh() {
 }
 
 window.renderProducts = async function(container) {
-  const cats = await fetch('/api/products/categories').then(r => r.json());
+  let cats = [];
+  try {
+    const r = await fetch('/api/products/categories');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    cats = await r.json();
+  } catch (e) {
+    container.innerHTML = '<h1 class="page-title">📦 상품 DB</h1><div class="loading" style="color:var(--red)">카테고리 로드 실패 — 새로고침 해주세요</div>';
+    return;
+  }
+
   const catOptions = ['<option value="">전체 카테고리</option>',
     ...cats.map(c => `<option value="${c}">${c}</option>`)].join('');
 
