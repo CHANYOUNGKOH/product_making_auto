@@ -1,6 +1,7 @@
 """Product Hub — FastAPI 앱 진입점."""
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -9,9 +10,14 @@ from fastapi.staticfiles import StaticFiles
 from hub.routers import dashboard, products, pipeline, export, stores
 from hub.services import db_service as _db_service
 
-_db_service.run_migrations()
 
-app = FastAPI(title="Product Hub", version="1.0.0")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    _db_service.run_migrations()
+    yield
+
+
+app = FastAPI(title="Product Hub", version="1.0.0", lifespan=_lifespan)
 
 app.include_router(dashboard.router)
 app.include_router(products.router)

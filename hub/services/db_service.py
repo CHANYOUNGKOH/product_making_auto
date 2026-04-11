@@ -32,6 +32,9 @@ def _conn(db_path: str | None = None):
     try:
         yield con
         con.commit()
+    except Exception:
+        con.rollback()
+        raise
     finally:
         con.close()
 
@@ -112,14 +115,6 @@ def get_dashboard_stats() -> dict[str, Any]:
 
 # ── 상품 DB ───────────────────────────────────────────────────────────────────
 
-_QUICK_FILTERS = {
-    "all":          "",
-    "has_oc_price": "AND oc_price IS NOT NULL AND oc_price > 0",
-    "no_market":    "AND (export_log IS NULL OR export_log = '[]')",
-    "partial_market": "",  # 복잡한 조건 — 일단 all과 동일
-}
-
-
 def get_products(
     q: str = "",
     category: str = "",
@@ -132,28 +127,28 @@ def get_products(
     params: list[Any] = []
 
     if q:
-        clauses.append(
-            "(상품코드 LIKE ? OR product_names_json LIKE ?)"
-        )
+        clauses.append("(상품코드 LIKE ? OR product_names_json LIKE ?)")
         params += [f"%{q}%", f"%{q}%"]
 
     if category:
         clauses.append("카테고리명 = ?")
         params.append(category)
 
-    extra = _QUICK_FILTERS.get(quick_filter, "")
-    where = " AND ".join(clauses)
-    if extra:
-        where += " " + extra
+    # quick_filter 처리
+    if quick_filter == "has_oc_price":
+        clauses.append("oc_price IS NOT NULL AND oc_price > 0")
+    elif quick_filter == "no_market":
+        clauses.append("(export_log IS NULL OR export_log = '[]')")
+    elif quick_filter not in ("all", "partial_market", ""):
+        raise ValueError(f"Unknown quick_filter: {quick_filter!r}")
+    # "all" and "partial_market" add no clause (partial_market not yet implemented)
 
+    where = " AND ".join(clauses)
     offset = (page - 1) * per_page
 
     with _conn() as con:
         cur = con.cursor()
-        cur.execute(
-            f"SELECT COUNT(*) FROM products WHERE {where}",
-            params,
-        )
+        cur.execute(f"SELECT COUNT(*) FROM products WHERE {where}", params)
         total = cur.fetchone()[0]
 
         cur.execute(
@@ -207,11 +202,16 @@ def get_categories() -> list[str]:
 def get_stores(active_only: bool = False) -> list[dict[str, Any]]:
     with _conn() as con:
         cur = con.cursor()
-        where = "WHERE active = 1" if active_only else ""
-        cur.execute(
-            f"SELECT id, alias, market, group_id, login_id, active, strategy, "
-            f"slot_count, created_at, updated_at FROM stores {where} ORDER BY alias"
-        )
+        if active_only:
+            cur.execute(
+                "SELECT id, alias, market, group_id, login_id, active, strategy, "
+                "slot_count, created_at, updated_at FROM stores WHERE active = 1 ORDER BY alias"
+            )
+        else:
+            cur.execute(
+                "SELECT id, alias, market, group_id, login_id, active, strategy, "
+                "slot_count, created_at, updated_at FROM stores ORDER BY alias"
+            )
         return [dict(row) for row in cur.fetchall()]
 
 
