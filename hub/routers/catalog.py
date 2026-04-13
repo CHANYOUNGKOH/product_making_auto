@@ -72,7 +72,7 @@ async def import_market_categories(file: UploadFile = File(...)):
     from hub.services.catalog_service import get_catalog_db_path
     from godomall_register.market_category_fetch import fetch_from_oc_excel
 
-    suffix = os.path.splitext(file.filename)[1]
+    suffix = os.path.splitext(file.filename or "")[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name

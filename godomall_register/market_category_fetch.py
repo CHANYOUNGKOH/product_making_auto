@@ -74,20 +74,21 @@ def fetch_from_oc_excel(excel_path: str, catalog_db_path: str) -> dict:
 
     rows_inserted = 0
     errors = []
-    for cat_key, info in cats.items():
-        markets = _parse_market_cat_string(info["mcat"])
-        if not markets:
-            errors.append(f"{cat_key}: 마켓카테고리 없음")
-            continue
-        for market, minfo in markets.items():
-            con.execute("""
-                INSERT OR REPLACE INTO oc_category_markets
-                (oc_category_key, oc_category_name, market,
-                 market_cat_code, market_cat_name, updated_at)
-                VALUES (?, ?, ?, ?, ?, datetime('now'))
-            """, [cat_key, info["name"], market, minfo["code"], minfo["name"]])
-            rows_inserted += 1
-
-    con.commit()
-    con.close()
+    try:
+        for cat_key, info in cats.items():
+            markets = _parse_market_cat_string(info["mcat"])
+            if not markets:
+                errors.append(f"{cat_key}: 마켓카테고리 없음")
+                continue
+            for market, minfo in markets.items():
+                con.execute("""
+                    INSERT OR REPLACE INTO oc_category_markets
+                    (oc_category_key, oc_category_name, market,
+                     market_cat_code, market_cat_name, updated_at)
+                    VALUES (?, ?, ?, ?, ?, datetime('now'))
+                """, [cat_key, info["name"], market, minfo["code"], minfo["name"]])
+                rows_inserted += 1
+        con.commit()
+    finally:
+        con.close()
     return {"categories": len(cats), "rows_inserted": rows_inserted, "errors": errors}
