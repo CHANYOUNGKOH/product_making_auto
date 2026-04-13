@@ -30,7 +30,7 @@ window.renderStores = async function(container) {
       const mkt = Object.keys(MARKET_COLORS).find(m => s.alias.startsWith(m)) || '';
       const color = MARKET_COLORS[mkt] || '#8b8fa8';
       const strategyLabel = {'lowest_price':'최저가','normal_sale':'일반판매','cpc_ad':'광고'}[s.strategy] || s.strategy || '-';
-      return `<tr>
+      return `<tr data-alias="${s.alias}" style="cursor:pointer">
         <td><span class="market-tag" style="background:${color}22;color:${color}">${s.alias}</span></td>
         <td style="color:${color}">${s.market || '-'}</td>
         <td style="color:var(--muted)">${s.group_id || '-'}</td>
@@ -39,6 +39,24 @@ window.renderStores = async function(container) {
         <td style="color:var(--muted);font-size:12px">${s.updated_at ? s.updated_at.slice(0,10) : '-'}</td>
       </tr>`;
     }).join('');
+
+    // 카테고리 배정 패널
+    let catPanel = document.getElementById('cat-assign-panel');
+    if (!catPanel) {
+      catPanel = document.createElement('div');
+      catPanel.id = 'cat-assign-panel';
+      catPanel.className = 'card';
+      catPanel.style.display = 'none';
+      const tableCard = tbody.closest('.card');
+      if (tableCard) tableCard.after(catPanel);
+    }
+
+    tbody.querySelectorAll('tr[data-alias]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        catPanel.style.display = 'block';
+        renderCategoryAssignment(catPanel, tr.dataset.alias);
+      });
+    });
   }
 
   container.innerHTML = `
@@ -90,3 +108,74 @@ window.renderStores = async function(container) {
     e.target.value = '';
   });
 };
+
+async function renderCategoryAssignment(container, storeAlias) {
+  container.innerHTML = '<div style="color:var(--muted);font-size:13px">로딩 중...</div>';
+
+  const [catsResp, assignedResp] = await Promise.all([
+    fetch('/api/register/oc-categories').then(r => r.json()),
+    fetch(`/api/register/assignments/${encodeURIComponent(storeAlias)}`).then(r => r.json()),
+  ]);
+
+  const assignedKeys = new Set(assignedResp.map(a => a.oc_category_name));
+
+  // 트리뷰 빌드: 대>중 기준으로 그루핑
+  const tree = {};
+  for (const cat of catsResp) {
+    const parts = (cat.oc_category_name || '').split('>');
+    const top = parts[0] || '기타';
+    if (!tree[top]) tree[top] = [];
+    tree[top].push(cat);
+  }
+
+  let html = `<div style="margin-top:16px">
+    <h4 style="font-size:14px;margin-bottom:12px">카테고리 배정 — <span style="color:var(--accent)">${storeAlias}</span></h4>
+    <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px">`;
+
+  for (const [top, cats] of Object.entries(tree)) {
+    html += `<div style="margin-bottom:8px">
+      <div style="font-weight:600;font-size:13px;color:var(--muted);margin-bottom:4px">${top}</div>`;
+    for (const cat of cats) {
+      const checked = assignedKeys.has(cat.oc_category_name) ? 'checked' : '';
+      html += `<label style="display:flex;align-items:center;gap:8px;padding:4px 8px;
+                              border-radius:4px;cursor:pointer;font-size:13px">
+        <input type="checkbox" class="cat-assign-cb" ${checked}
+               data-name="${cat.oc_category_name}">
+        <span>${cat.oc_category_name.split('>').slice(1).join('>') || cat.oc_category_name}</span>
+        <span style="margin-left:auto;color:var(--muted);font-size:12px">${cat.product_count}개</span>
+      </label>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `</div></div>`;
+  container.innerHTML = html;
+
+  // 체크박스 이벤트
+  container.querySelectorAll('.cat-assign-cb').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const name = cb.dataset.name;
+      if (cb.checked) {
+        const r = await fetch('/api/register/assignments', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({store_alias: storeAlias, oc_category_name: name}),
+        });
+        const data = await r.json();
+        if (data.conflict_stores?.length) {
+          cb.parentElement.style.background = 'rgba(250,204,21,0.1)';
+          cb.parentElement.title = `⚠ 같은 마켓그룹: ${data.conflict_stores.join(', ')}`;
+        }
+      } else {
+        await fetch(
+          `/api/register/assignments/${encodeURIComponent(storeAlias)}?oc_category_name=${encodeURIComponent(name)}`,
+          {method: 'DELETE'},
+        );
+        cb.parentElement.style.background = '';
+        cb.parentElement.title = '';
+      }
+    });
+  });
+}
+
+window.renderCategoryAssignment = renderCategoryAssignment;
