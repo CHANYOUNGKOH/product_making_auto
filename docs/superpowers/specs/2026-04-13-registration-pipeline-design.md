@@ -42,37 +42,28 @@ wmp,4103974,...
 playauto,44091100,...
 ```
 
-### 1-2. oc_catalog.db 스키마 확장
+### 1-2. oc_catalog.db 스키마
+
+상품 단위 중복 저장 없음. **OC 카테고리 단위**로만 관리, 상품은 `oc_category_key`로 참조.
 
 ```sql
--- 기존 oc_items에 추가
-ALTER TABLE oc_items ADD COLUMN market_categories_json TEXT;
--- JSON 구조:
--- {
---   "auction":    {"code": "71281100",      "name": "생활>사무용품>스테이플러"},
---   "gmarket":    {"code": "300010585",     "name": "생활>사무용품>스테이플러"},
---   "st11":       {"code": "1010651",       "name": "문구/사무용품>사무용품>..."},
---   "storefarm":  {"code": "50003757",      "name": "생활/건강>문구/사무용품>..."},
---   "coupang":    {"code": "80087",         "name": "문구/사무실>사무용품>..."},
---   "interpark":  {"code": "...",           "name": "..."},
---   "tmon":       {"code": "...",           "name": "..."},
---   "esellers":   {"code": "...",           "name": "..."},
---   "wmp":        {"code": "...",           "name": "..."},
---   "playauto":   {"code": "...",           "name": "..."}
--- }
-
--- OC 카테고리별 마켓카테고리 캐시 (카테고리 단위 관리용)
+-- OC 카테고리별 마켓카테고리 (카테고리 단위, 상품별 중복 저장 없음)
 CREATE TABLE IF NOT EXISTS oc_category_markets (
     oc_category_key   TEXT NOT NULL,
-    oc_category_name  TEXT,
-    market            TEXT NOT NULL,   -- auction, gmarket, st11, storefarm, coupang, ...
-    market_cat_code   TEXT,
-    market_cat_name   TEXT,
-    is_manual         INTEGER DEFAULT 0,  -- 1: OC 미지정, 수동 입력
+    oc_category_name  TEXT,           -- OC category fullName (텍스트, 배정 기준)
+    market            TEXT NOT NULL,  -- auction, gmarket, st11, storefarm, coupang, ...
+    market_cat_code   TEXT,           -- 해당 마켓의 카테고리 코드
+    market_cat_name   TEXT,           -- 해당 마켓의 카테고리 경로
+    is_manual         INTEGER DEFAULT 0,  -- 1: OC 미지정 → 수동 입력
     updated_at        TEXT,
     PRIMARY KEY (oc_category_key, market)
 );
+
+-- 마켓별 지원 목록 (참고용)
+-- auction, gmarket, st11, storefarm, coupang, interpark, tmon, esellers, wmp, playauto
 ```
+
+`oc_items.oc_category_key` → `oc_category_markets` JOIN으로 상품의 마켓카테고리 코드 조회.
 
 ### 1-3. 미지정 마켓카테고리 처리
 
@@ -141,8 +132,9 @@ JOIN store_category_assignments a2
 
 ### 2-4. Hub UI (스토어 관리 페이지 확장)
 
-- 스토어 선택 → 배정할 OC 카테고리 목록 선택
-- 배정 전 경고: 같은 마켓그룹 내 다른 스토어에 이미 배정된 카테고리 강조
+- 스토어 선택 → OC 카테고리 **트리뷰** 표시 (대>중>소, fullName 텍스트 기준)
+- 각 카테고리 노드에 상품 수 표시
+- 배정 전 경고: 같은 마켓그룹 내 다른 스토어에 이미 배정된 카테고리 강조 표시
 - 배정 후: `store_category_assignments` 저장
 
 ---
@@ -162,24 +154,28 @@ Step 1. 출고 대상 필터
 Step 2. 가격 계산
    → price_engine.batch_solve(policy=get_pricing_strategy(market, strategy))
    ↓
-Step 3. 포맷 변환
-   → 고도몰: convert_ownerclan_to_godomall() → 고도몰 업로드 Excel
-   → 스마트스토어: (추후) 스마트스토어 포맷
-   → 옥션/지마켓: (추후) ESM 포맷
+Step 3. 포맷 변환 + alt 주입
+   → 상세설명 HTML: alt 태그 자동 주입 (기존 구현)
+   → 고도몰: convert_ownerclan_to_godomall() → 고도몰 자체 Excel 양식 [구현됨]
+   → 나머지 마켓 (옥션/지마켓/11번가/스마트스토어 등):
+       OC_ES_converter + Upload_Mapper/solutions/esellers.py → 이셀러스 Excel 양식 [구현됨]
    ↓
 Step 4a. Excel 다운로드 (Phase 1 - 현재)
-   → 생성된 Excel 다운로드 → 셀러센터 수동 업로드
+   → 고도몰 Excel + 이셀러스 Excel 생성 → 수동 업로드
+   → 생성 시 market_registrations에 status='READY' 기록
    ↓
 Step 4b. API 직접 등록 (Phase 2 - 추후)
-   → 고도몰 API, 스마트스토어 API 직접 호출
+   → 고도몰 API, 이셀러스 API 직접 호출 → status='UPLOADED' 자동 기록
    ↓
-Step 5. 등록 기록
-   → market_registrations 테이블에 상품코드, 스토어, 마켓, 등록일 기록
+Step 5. 등록 현황 추적
+   → 셀러센터 Excel import 시 market_registrations 갱신:
+       import에 있음 → status='UPLOADED'
+       import에 없음 → status='UPLOAD_FAILED' (별도 관리큐)
    ↓
 Step 6. Naver 연동 스토어 재검증 (Phase 2)
    → 고도몰/스마트스토어 업로드 후
-   → 네이버쇼핑파트너센터 크롤링으로 실제 카테고리 판정 확인
-   → 중복 판정 시 알림
+   → 네이버쇼핑파트너센터 크롤링으로 실제 네이버카테고리 판정 확인
+   → 중복 판정 시 status='DUPLICATE_WARNING', 대시보드 경고
 ```
 
 ### 3-2. 새 테이블: market_registrations
@@ -189,36 +185,50 @@ CREATE TABLE IF NOT EXISTS market_registrations (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     상품코드            TEXT NOT NULL,
     store_alias         TEXT NOT NULL,
-    market              TEXT NOT NULL,          -- 고도몰, 스마트스토어, 옥션, ...
+    market              TEXT NOT NULL,          -- 고도몰, 스마트스토어, 옥션, 지마켓, 11번가, ...
     market_product_id   TEXT,                   -- 마켓 부여 상품번호 (API 등록 후)
     oc_category_key     TEXT,
     market_cat_code     TEXT,                   -- 해당 마켓에서의 카테고리 코드
     sell_price          INTEGER,
     strategy            TEXT,                   -- lowest_price, normal_sale, cpc_ad
-    registered_at       TEXT,
-    status              TEXT DEFAULT 'ACTIVE',  -- ACTIVE, INACTIVE, DUPLICATE_WARNING
     pipeline_run_id     TEXT,                   -- 어떤 파이프라인 실행에서 등록됐는지
-    -- UNIQUE 없음: 동일 상품이 재등록될 수 있음 (삭제 후 재등록)
-    -- 최신 등록 상태는 registered_at DESC 기준으로 조회
-    PRIMARY KEY(상품코드, store_alias, registered_at)
+    status              TEXT DEFAULT 'READY',
+    -- READY          : Excel 생성됨, 수동 업로드 대기 중
+    -- UPLOADED       : 셀러센터 import 또는 API로 등록 확인
+    -- UPLOAD_FAILED  : import 시 누락 (이셀러스/마켓 오류) → 별도 관리큐
+    -- DUPLICATE_WARNING: 네이버 파트너센터에서 중복 판정
+    created_at          TEXT,                   -- Excel 생성 시각
+    confirmed_at        TEXT,                   -- UPLOADED 확인 시각
+    -- 동일 상품 재등록 가능 (삭제 후 재등록), 최신 상태는 created_at DESC
+    PRIMARY KEY(상품코드, store_alias, created_at)
 );
+
+-- UPLOAD_FAILED 관리큐 뷰
+CREATE VIEW IF NOT EXISTS v_upload_failed AS
+SELECT 상품코드, store_alias, market, market_cat_code, created_at
+FROM market_registrations
+WHERE status = 'UPLOAD_FAILED'
+ORDER BY created_at DESC;
 ```
 
 ### 3-3. Hub 파이프라인 페이지 UI 구성
 
 ```
 [등록 파이프라인] 페이지
-  ┌─────────────────────────────────────┐
-  │ 스토어 선택      [고도몰_메인 ▼]      │
-  │ 가격 전략        ● 최저가  ○ 일반  ○ 광고 │
-  │                                     │
-  │ [📋 미리보기]  → 출고 예정 N개       │
-  │   카테고리별 상품수 요약              │
-  │   상품 목록 (코드, 상품명, 원가, 판매가) │
-  │                                     │
-  │ [▶ Excel 생성]  → 다운로드 링크      │
-  │ [🚀 API 등록]   → (Phase 2)         │
-  └─────────────────────────────────────┘
+  ┌──────────────────────────────────────────────┐
+  │ 스토어 선택      [고도몰_메인 ▼]               │
+  │ 가격 전략        ● 최저가  ○ 일반판매  ○ 광고   │
+  │                                              │
+  │ [📋 미리보기]  → 출고 예정 N개                │
+  │   OC 카테고리별 상품수 요약 (트리)             │
+  │   상품 목록 (코드, 상품명, 원가, 판매가)        │
+  │                                              │
+  │ [▶ 고도몰 Excel 생성]  → 다운로드 링크         │
+  │ [▶ 이셀러스 Excel 생성] → 다운로드 링크         │
+  │ [🚀 API 직접 등록]      → (Phase 2)           │
+  │                                              │
+  │ UPLOAD_FAILED 현황: N개  [관리 목록 보기]      │
+  └──────────────────────────────────────────────┘
 ```
 
 ---
