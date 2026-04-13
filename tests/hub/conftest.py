@@ -40,6 +40,36 @@ CREATE TABLE IF NOT EXISTS stores (
 );
 """
 
+STORE_CATEGORY_ASSIGNMENTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS store_category_assignments (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    store_alias      TEXT NOT NULL,
+    oc_category_key  TEXT NOT NULL,
+    oc_category_name TEXT,
+    market_group     TEXT NOT NULL,
+    assigned_at      TEXT DEFAULT (datetime('now', 'localtime')),
+    UNIQUE(store_alias, oc_category_key)
+);
+"""
+
+MARKET_REGISTRATIONS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS market_registrations (
+    상품코드          TEXT NOT NULL,
+    store_alias       TEXT NOT NULL,
+    market            TEXT NOT NULL,
+    market_product_id TEXT,
+    oc_category_key   TEXT,
+    market_cat_code   TEXT,
+    sell_price        INTEGER,
+    strategy          TEXT,
+    pipeline_run_id   TEXT,
+    status            TEXT DEFAULT 'READY',
+    created_at        TEXT DEFAULT (datetime('now', 'localtime')),
+    confirmed_at      TEXT,
+    PRIMARY KEY(상품코드, store_alias, created_at)
+);
+"""
+
 
 def _seed_products(conn: sqlite3.Connection) -> None:
     conn.executemany(
@@ -74,7 +104,10 @@ def test_db_path(tmp_path_factory):
     """세션 범위 임시 DB 파일."""
     db_file = tmp_path_factory.mktemp("hub_test") / "test_products.db"
     conn = sqlite3.connect(str(db_file))
-    conn.executescript(PRODUCTS_SCHEMA + STORES_SCHEMA)
+    conn.executescript(
+        PRODUCTS_SCHEMA + STORES_SCHEMA +
+        STORE_CATEGORY_ASSIGNMENTS_SCHEMA + MARKET_REGISTRATIONS_SCHEMA
+    )
     _seed_products(conn)
     _seed_stores(conn)
     conn.close()

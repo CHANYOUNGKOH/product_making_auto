@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from hub.routers import dashboard, products, pipeline, export, stores
+from hub.routers import dashboard, products, pipeline, export, stores, vendors, catalog, register
 from hub.services import db_service as _db_service
 
 
@@ -24,6 +24,9 @@ app.include_router(products.router)
 app.include_router(pipeline.router)
 app.include_router(export.router)
 app.include_router(stores.router)
+app.include_router(vendors.router)
+app.include_router(catalog.router)
+app.include_router(register.router)
 
 _static_dir = Path(__file__).parent / "static"
 app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
