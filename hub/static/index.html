@@ -8,7 +8,12 @@
 </head>
 <body>
   <nav id="sidebar">
-    <div class="sidebar-logo">Product Hub</div>
+    <div class="sidebar-logo">
+      Product Hub
+      <span id="scan-badge" style="display:none;margin-left:8px;font-size:10px;
+        padding:2px 6px;border-radius:10px;background:rgba(255,180,0,0.2);
+        color:#ffb400;vertical-align:middle">스캔 중</span>
+    </div>
     <div class="nav-group">
       <div class="nav-label">Overview</div>
       <a class="nav-item" data-page="dashboard" href="#">&#128202; 대시보드</a>
@@ -19,12 +24,17 @@
       <a class="nav-item" data-page="stores" href="#">&#127962; 스토어 관리</a>
     </div>
     <div class="nav-group">
+      <div class="nav-label">Sourcing</div>
+      <a class="nav-item" data-page="vendors" href="#">&#127981; 공급사 관리</a>
+    </div>
+    <div class="nav-group">
       <div class="nav-label">Processing</div>
       <a class="nav-item" data-page="pipeline" href="#">&#9881;&#65039; 파이프라인</a>
     </div>
     <div class="nav-group">
       <div class="nav-label">Export</div>
       <a class="nav-item" data-page="export" href="#">&#128717; 마켓 출고</a>
+      <a class="nav-item" data-page="pipeline-register" href="#">🚀 등록 파이프라인</a>
     </div>
   </nav>
   <main id="content">
@@ -36,6 +46,8 @@
   <script src="/pages/pipeline.js"></script>
   <script src="/pages/export.js"></script>
   <script src="/pages/stores.js"></script>
+  <script src="/pages/vendors.js"></script>
+  <script src="/pages/pipeline_register.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

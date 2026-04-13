@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 from pydantic import BaseModel
 
 
@@ -46,3 +48,31 @@ async def remove_assignment(store_alias: str, oc_category_name: str):
     """카테고리 배정 제거. Query param: oc_category_name."""
     from hub.services.register_service import remove_assignment
     return remove_assignment(store_alias, oc_category_name)
+
+
+@router.get("/api/register/preview/{store_alias}")
+async def pipeline_preview(store_alias: str, strategy: str = "lowest_price"):
+    from hub.services.register_service import get_pipeline_preview
+    return get_pipeline_preview(store_alias, strategy)
+
+
+@router.post("/api/register/run/godomall")
+async def run_godomall(body: dict):
+    from hub.services.register_service import run_godomall_pipeline
+    return run_godomall_pipeline(body["store_alias"], body.get("strategy", "lowest_price"))
+
+
+@router.post("/api/register/run/esellers")
+async def run_esellers(body: dict):
+    from hub.services.register_service import run_esellers_pipeline
+    return run_esellers_pipeline(body["store_alias"], body.get("strategy", "lowest_price"))
+
+
+@router.get("/api/register/download/{file_id}")
+async def download_file(file_id: str):
+    from hub.services.register_service import get_export_file
+    path = get_export_file(file_id)
+    if not path or not Path(path).exists():
+        raise HTTPException(404, "파일 없음")
+    return FileResponse(path, filename=Path(path).name,
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
