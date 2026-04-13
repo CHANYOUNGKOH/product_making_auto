@@ -70,6 +70,23 @@ CREATE TABLE IF NOT EXISTS market_registrations (
 );
 """
 
+VENDORS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS vendors (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    vendor_code       TEXT UNIQUE NOT NULL,
+    vendor_name       TEXT,
+    source            TEXT DEFAULT 'oc',
+    product_count     INTEGER,
+    category          TEXT,
+    oc_link           TEXT,
+    status            TEXT DEFAULT 'pending',
+    processed_count   INTEGER DEFAULT 0,
+    last_imported_at  TEXT,
+    created_at        TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at        TEXT DEFAULT (datetime('now', 'localtime'))
+);
+"""
+
 
 def _seed_products(conn: sqlite3.Connection) -> None:
     conn.executemany(
@@ -106,7 +123,8 @@ def test_db_path(tmp_path_factory):
     conn = sqlite3.connect(str(db_file))
     conn.executescript(
         PRODUCTS_SCHEMA + STORES_SCHEMA +
-        STORE_CATEGORY_ASSIGNMENTS_SCHEMA + MARKET_REGISTRATIONS_SCHEMA
+        STORE_CATEGORY_ASSIGNMENTS_SCHEMA + MARKET_REGISTRATIONS_SCHEMA +
+        VENDORS_SCHEMA
     )
     _seed_products(conn)
     _seed_stores(conn)

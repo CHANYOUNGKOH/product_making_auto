@@ -43,6 +43,24 @@ _OC_STATUS_TO_PRODUCT_STATUS = {
     "discontinued": "INACTIVE",
 }
 
+# 지연 임포트 플레이스홀더 — 테스트에서 patch("hub.services.catalog_service.OwnerclanClient") 가능
+OwnerclanClient = None
+OwnerclanApiError = Exception  # 기본값: 모든 예외 허용
+
+
+def _ensure_oc_client():
+    """OwnerclanClient / OwnerclanApiError 를 모듈 네임스페이스에 바인딩 (최초 1회)."""
+    global OwnerclanClient, OwnerclanApiError
+    if OwnerclanClient is None:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+        from godomall_register.ownerclan_client import (
+            OwnerclanClient as _C,
+            OwnerclanApiError as _E,
+        )
+        OwnerclanClient = _C
+        OwnerclanApiError = _E
+
 
 # ── DB 경로 ───────────────────────────────────────────────────────────────────
 
@@ -760,6 +778,251 @@ def scan_from_csv(csv_folder: str, progress_callback=None) -> dict:
     return result
 
 
+# ── 공급사별 증분 스캔 ─────────────────────────────────────────────────────────
+
+def vendor_scan(progress_callback=None) -> dict:
+    """등록 공급사별 allItems(vendor=code) 스캔 → oc_catalog.db upsert + products.db backfill.
+
+    vendors 테이블에서 status != 'inactive' 공급사 조회 → 각 공급사 순차 스캔.
+    소요 시간: ~10분 (공급사 50개 × 평균 1000상품 기준)
+    """
+    import time
+    _ensure_oc_client()  # OwnerclanClient / OwnerclanApiError 모듈 바인딩 (미패치 시)
+    from hub.services.db_service import get_db_path
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    result = {
+        "scanned_vendors": 0,
+        "total_items": 0,
+        "new_items": 0,
+        "updated_items": 0,
+        "backfilled": 0,
+        "errors": [],
+        "duration_sec": 0.0,
+        "synced_at": now_iso,
+    }
+
+    t0 = time.monotonic()
+
+    products_path = get_db_path()
+    catalog_path = get_catalog_db_path()
+    client = OwnerclanClient()
+
+    # vendors 테이블에서 active 공급사 조회
+    prod_conn = sqlite3.connect(products_path)
+    prod_conn.row_factory = sqlite3.Row
+    try:
+        vendors = prod_conn.execute(
+            "SELECT vendor_code FROM vendors WHERE status != 'inactive' AND vendor_code IS NOT NULL"
+        ).fetchall()
+    finally:
+        prod_conn.close()
+
+    vendor_codes = [r["vendor_code"] for r in vendors]
+    if not vendor_codes:
+        result["duration_sec"] = round(time.monotonic() - t0, 1)
+        return result
+
+    if progress_callback:
+        progress_callback(0, len(vendor_codes), f"공급사 {len(vendor_codes)}개 스캔 시작...")
+
+    # oc_catalog.db 준비
+    cat_conn = sqlite3.connect(catalog_path)
+    all_new_keys = []
+    try:
+        _init_catalog(cat_conn)
+        cat_cur = cat_conn.cursor()
+
+        # 기존 키 SET 수집 (신규 감지용)
+        existing_keys = set(
+            r[0] for r in cat_cur.execute("SELECT key FROM oc_items").fetchall()
+        )
+
+        for vi, vc in enumerate(vendor_codes):
+            if progress_callback:
+                progress_callback(vi, len(vendor_codes),
+                    f"공급사 {vi+1}/{len(vendor_codes)}: {vc} 스캔 중...")
+
+            try:
+                items = client.search_items(
+                    vendor=vc, status="available",
+                    fields=CATALOG_FIELDS, first=100, timeout=180,
+                )
+            except OwnerclanApiError as exc:
+                result["errors"].append(f"공급사 {vc}: {exc}")
+                continue
+
+            result["scanned_vendors"] += 1
+            result["total_items"] += len(items)
+
+            batch_new_keys = []
+            for item in items:
+                key = item.get("key", "")
+                if not key:
+                    continue
+
+                is_new = key not in existing_keys
+                if is_new:
+                    result["new_items"] += 1
+                    batch_new_keys.append(key)
+                    existing_keys.add(key)
+                else:
+                    result["updated_items"] += 1
+
+                metadata = item.get("metadata") or {}
+                if isinstance(metadata, str):
+                    try:
+                        metadata = json.loads(metadata)
+                    except Exception:
+                        metadata = {}
+                grade = metadata.get("gradeDetail") or {}
+
+                cat_cur.execute(
+                    """INSERT INTO oc_items
+                       (key, vendor_code, status, price_krw, shipping_fee,
+                        shipping_type, bundle_shipping, openmarket_sellable,
+                        release_rate, average_ship, last_scanned_at, last_updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(key) DO UPDATE SET
+                         vendor_code         = excluded.vendor_code,
+                         status              = excluded.status,
+                         price_krw           = excluded.price_krw,
+                         shipping_fee        = excluded.shipping_fee,
+                         shipping_type       = excluded.shipping_type,
+                         bundle_shipping     = excluded.bundle_shipping,
+                         openmarket_sellable = excluded.openmarket_sellable,
+                         release_rate        = excluded.release_rate,
+                         average_ship        = excluded.average_ship,
+                         last_updated_at     = excluded.last_updated_at""",
+                    [key,
+                     str(metadata["vendorKey"]) if metadata.get("vendorKey") else vc,
+                     item.get("status"), item.get("price"), item.get("shippingFee"),
+                     item.get("shippingType"), metadata.get("bundleShipping"),
+                     1 if item.get("openmarketSellable") else 0,
+                     grade.get("releaseRate", ""), grade.get("averageShip", ""),
+                     now_iso, now_iso],
+                )
+
+            cat_conn.commit()
+            all_new_keys.extend(batch_new_keys)
+
+        # 메타 갱신
+        cat_cur.execute(
+            "INSERT OR REPLACE INTO oc_catalog_meta VALUES ('last_vendor_scan_at', ?)", [now_iso])
+        cat_cur.execute(
+            "INSERT OR REPLACE INTO oc_catalog_meta VALUES ('vendor_scan_count', ?)",
+            [str(result["scanned_vendors"])])
+        cat_conn.commit()
+    finally:
+        cat_conn.close()
+
+    # products.db backfill (신규 키 → UPDATE 기존 + INSERT 미등록)
+    # 주의: products.상품코드에 UNIQUE 제약 없음 — ON CONFLICT 사용 불가
+    if progress_callback:
+        progress_callback(len(vendor_codes), len(vendor_codes), "products.db backfill 중...")
+    try:
+        prod_conn = sqlite3.connect(products_path)
+        cat_conn2 = sqlite3.connect(catalog_path)
+        try:
+            prod_conn.execute("PRAGMA journal_mode=WAL")
+            pc = prod_conn.cursor()
+            cc = cat_conn2.cursor()
+
+            # 기존 products.db 상품코드 SET
+            pc.execute("SELECT 상품코드 FROM products WHERE 상품코드 IS NOT NULL AND 상품코드 != ''")
+            existing_prod_keys = {r[0] for r in pc.fetchall()}
+
+            # 이번 스캔에서 처리한 모든 키의 oc_items 조회
+            all_scanned = list(existing_keys)
+            new_keys_set = set(all_new_keys)
+            CHUNK = 5000
+            bf_count = 0
+            for ci in range(0, len(all_scanned), CHUNK):
+                chunk = all_scanned[ci:ci + CHUNK]
+                placeholders = ",".join("?" * len(chunk))
+                cc.execute(
+                    f"SELECT key, vendor_code, status, price_krw, shipping_fee, "
+                    f"shipping_type, bundle_shipping, openmarket_sellable "
+                    f"FROM oc_items WHERE key IN ({placeholders})",
+                    chunk,
+                )
+                for row in cc.fetchall():
+                    key, vc, status, price_krw, ship_fee, ship_type, bundle_ship, om_sell = row
+                    product_status = _OC_STATUS_TO_PRODUCT_STATUS.get(status or "", "ACTIVE")
+                    if key in existing_prod_keys:
+                        # 기존 상품 → UPDATE (COALESCE: 기존값 보존)
+                        pc.execute(
+                            """UPDATE products SET
+                                 vendor_code            = COALESCE(vendor_code, ?),
+                                 oc_price               = ?,
+                                 oc_shipping_fee        = ?,
+                                 oc_shipping_type       = ?,
+                                 oc_bundle_ship         = ?,
+                                 oc_status              = ?,
+                                 oc_openmarket_sellable = ?,
+                                 product_status         = ?,
+                                 oc_synced_at           = ?
+                               WHERE 상품코드 = ?""",
+                            [vc, price_krw, ship_fee, ship_type, bundle_ship,
+                             status, om_sell, product_status, now_iso, key],
+                        )
+                        bf_count += prod_conn.execute("SELECT changes()").fetchone()[0]
+                    elif key in new_keys_set:
+                        # 신규 상품 → INSERT
+                        pc.execute(
+                            """INSERT INTO products
+                               (상품코드, vendor_code, oc_price, oc_shipping_fee,
+                                oc_shipping_type, oc_bundle_ship, oc_status,
+                                oc_openmarket_sellable, product_status, oc_synced_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            [key, vc, price_krw, ship_fee, ship_type,
+                             bundle_ship, status, om_sell, product_status, now_iso],
+                        )
+                        bf_count += 1
+
+            prod_conn.commit()
+            result["backfilled"] = bf_count
+        finally:
+            prod_conn.close()
+            cat_conn2.close()
+    except Exception as exc:
+        result["errors"].append(f"products.db backfill 실패: {exc}")
+        logger.exception("vendor_scan backfill error")
+
+    # vendors 테이블 product_count 갱신
+    try:
+        prod_conn = sqlite3.connect(products_path)
+        cat_conn3 = sqlite3.connect(catalog_path)
+        try:
+            for vc in vendor_codes:
+                cnt = cat_conn3.execute(
+                    "SELECT COUNT(*) FROM oc_items WHERE vendor_code=?", [vc]
+                ).fetchone()[0]
+                prod_conn.execute(
+                    "UPDATE vendors SET product_count=?, updated_at=datetime('now','localtime') WHERE vendor_code=?",
+                    [cnt, vc],
+                )
+            prod_conn.commit()
+        finally:
+            prod_conn.close()
+            cat_conn3.close()
+    except Exception as exc:
+        result["errors"].append(f"vendors 갱신 실패: {exc}")
+
+    result["duration_sec"] = round(time.monotonic() - t0, 1)
+
+    if progress_callback:
+        progress_callback(len(vendor_codes), len(vendor_codes),
+            f"완료 — 공급사 {result['scanned_vendors']}개 · "
+            f"상품 {result['total_items']:,}개 · "
+            f"신규 {result['new_items']}개 · backfill {result['backfilled']}개")
+
+    logger.info("vendor_scan done: vendors=%d items=%d new=%d backfilled=%d errors=%d",
+                result["scanned_vendors"], result["total_items"],
+                result["new_items"], result["backfilled"], len(result["errors"]))
+    return result
+
+
 # ── 백그라운드 스캔 (폴링용) ──────────────────────────────────────────────────
 
 def _make_empty_state(job_type: str = "") -> dict:
@@ -815,6 +1078,11 @@ def start_catalog_scan_bg() -> dict:
 def start_sync_existing_bg() -> dict:
     """기존 products.db 상품코드 기준 OC 동기화 백그라운드 시작."""
     return _start_bg_job("sync_existing", sync_from_existing_products)
+
+
+def start_vendor_scan_bg() -> dict:
+    """등록 공급사별 증분 스캔 백그라운드 시작."""
+    return _start_bg_job("vendor_scan", vendor_scan)
 
 
 def start_scan_from_csv_bg(csv_folder: str) -> dict:

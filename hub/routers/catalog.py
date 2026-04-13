@@ -24,6 +24,13 @@ async def start_sync_existing():
     return start_sync_existing_bg()
 
 
+@router.post("/api/catalog/vendor-scan/start")
+async def start_vendor_scan():
+    """등록 공급사별 증분 스캔 백그라운드 시작."""
+    from hub.services.catalog_service import start_vendor_scan_bg
+    return start_vendor_scan_bg()
+
+
 @router.post("/api/catalog/scan-csv/start")
 async def start_scan_csv(body: dict = None):
     """selfcode CSV 기반 전체 OC 스캔 (~10시간)."""
