@@ -59,13 +59,19 @@ async def pipeline_preview(store_alias: str, strategy: str = "lowest_price"):
 @router.post("/api/register/run/godomall")
 async def run_godomall(body: dict):
     from hub.services.register_service import run_godomall_pipeline
-    return run_godomall_pipeline(body["store_alias"], body.get("strategy", "lowest_price"))
+    store_alias = body.get("store_alias")
+    if not store_alias:
+        raise HTTPException(status_code=422, detail="store_alias 필수")
+    return run_godomall_pipeline(store_alias, body.get("strategy", "lowest_price"))
 
 
 @router.post("/api/register/run/esellers")
 async def run_esellers(body: dict):
     from hub.services.register_service import run_esellers_pipeline
-    return run_esellers_pipeline(body["store_alias"], body.get("strategy", "lowest_price"))
+    store_alias = body.get("store_alias")
+    if not store_alias:
+        raise HTTPException(status_code=422, detail="store_alias 필수")
+    return run_esellers_pipeline(store_alias, body.get("strategy", "lowest_price"))
 
 
 @router.get("/api/register/download/{file_id}")
