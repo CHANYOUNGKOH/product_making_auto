@@ -155,3 +155,59 @@ def test_vendor_scan_endpoint_returns_started(client, test_db_path):
         r = client.post("/api/catalog/vendor-scan/start")
     assert r.status_code == 200
     assert r.json().get("started") is True
+
+
+# ── discovery_scan 테스트 ──
+
+def test_discovery_scan_finds_new_vendors(test_db_path, catalog_db):
+    conn = sqlite3.connect(catalog_db)
+    conn.execute("INSERT INTO oc_items (key, vendor_code, status) VALUES ('W300', 'V001', 'available')")
+    conn.commit()
+    conn.close()
+
+    mock_items = [
+        {"key": "W300", "metadata": {"vendorKey": "V001"}},
+        {"key": "W400", "metadata": {"vendorKey": "V999"}},
+        {"key": "W401", "metadata": {"vendorKey": "V999"}},
+    ]
+
+    with patch("hub.services.catalog_service.get_catalog_db_path", return_value=catalog_db), \
+         patch("hub.services.catalog_service.OwnerclanClient") as MockClient:
+        instance = MockClient.return_value
+        instance.search_items.return_value = mock_items
+        from hub.services.catalog_service import discovery_scan
+        result = discovery_scan()
+
+    assert result["new_vendors"] >= 1
+    assert "V999" in result["new_vendor_codes"]
+
+    conn = sqlite3.connect(test_db_path)
+    row = conn.execute("SELECT status FROM vendors WHERE vendor_code='V999'").fetchone()
+    conn.close()
+    assert row is not None
+    assert row[0] == "discovered"
+
+
+def test_discovery_scan_counts_known_vendors(test_db_path, catalog_db):
+    conn = sqlite3.connect(catalog_db)
+    conn.execute("INSERT INTO oc_items (key, vendor_code, status) VALUES ('W500', 'V010', 'available')")
+    conn.commit()
+    conn.close()
+
+    mock_items = [{"key": "W500", "metadata": {"vendorKey": "V010"}}]
+
+    with patch("hub.services.catalog_service.get_catalog_db_path", return_value=catalog_db), \
+         patch("hub.services.catalog_service.OwnerclanClient") as MockClient:
+        instance = MockClient.return_value
+        instance.search_items.return_value = mock_items
+        from hub.services.catalog_service import discovery_scan
+        result = discovery_scan()
+
+    assert result["new_vendors"] == 0
+
+
+def test_discovery_scan_endpoint(client):
+    with patch("hub.services.catalog_service._start_bg_job", return_value={"started": True}):
+        r = client.post("/api/catalog/discovery-scan/start")
+    assert r.status_code == 200
+    assert r.json().get("started") is True

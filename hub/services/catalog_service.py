@@ -1085,6 +1085,142 @@ def start_vendor_scan_bg() -> dict:
     return _start_bg_job("vendor_scan", vendor_scan)
 
 
+# ── discovery_scan — 경량 전체 스캔 (신규 공급사 발견) ────────────────────────
+
+DISCOVERY_FIELDS = "key metadata"
+
+
+def discovery_scan(progress_callback=None) -> dict:
+    """allItems(status=available) 경량 스캔 — key+vendorKey만 수집 → 신규 공급사 발견.
+
+    oc_catalog.db의 기존 vendor_code SET과 비교하여 신규 공급사를 vendors 테이블에 삽입.
+    소요 시간: ~3-4시간 (9.4M 상품, key+metadata만)
+    """
+    import time
+
+    _ensure_oc_client()
+    from hub.services.db_service import get_db_path
+
+    t0 = time.monotonic()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    result = {
+        "total_scanned": 0,
+        "known_vendors": 0,
+        "new_vendors": 0,
+        "new_vendor_codes": [],
+        "errors": [],
+        "duration_sec": 0.0,
+    }
+
+    catalog_path = get_catalog_db_path()
+    products_path = get_db_path()
+    client = OwnerclanClient()
+
+    # 기존 vendor_code SET 수집
+    cat_conn = sqlite3.connect(catalog_path)
+    try:
+        _init_catalog(cat_conn)
+        existing_vendors = set(
+            r[0] for r in cat_conn.execute(
+                "SELECT DISTINCT vendor_code FROM oc_items WHERE vendor_code IS NOT NULL"
+            ).fetchall()
+        )
+    finally:
+        cat_conn.close()
+
+    if progress_callback:
+        progress_callback(0, 0, f"기존 공급사 {len(existing_vendors):,}개. 전체 스캔 시작...")
+
+    # allItems 경량 스캔
+    scanned_vendors: dict = {}  # vendor_code → 상품 수
+
+    try:
+        items = client.search_items(
+            status="available",
+            fields=DISCOVERY_FIELDS,
+            first=1000,
+            timeout=300,
+        )
+    except OwnerclanApiError as exc:
+        result["errors"].append(f"allItems 스캔 실패: {exc}")
+        result["duration_sec"] = round(time.monotonic() - t0, 1)
+        return result
+
+    result["total_scanned"] = len(items)
+
+    for item in items:
+        metadata = item.get("metadata") or {}
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except Exception:
+                metadata = {}
+        vc = str(metadata.get("vendorKey", "")).strip()
+        if vc:
+            scanned_vendors[vc] = scanned_vendors.get(vc, 0) + 1
+
+    if progress_callback:
+        progress_callback(result["total_scanned"], result["total_scanned"],
+            f"스캔 완료. 공급사 {len(scanned_vendors):,}개 발견. 비교 중...")
+
+    # 신규 공급사 = 스캔에서 발견 - 기존
+    new_vendor_codes = set(scanned_vendors.keys()) - existing_vendors
+    result["known_vendors"] = len(scanned_vendors) - len(new_vendor_codes)
+    result["new_vendors"] = len(new_vendor_codes)
+    result["new_vendor_codes"] = sorted(new_vendor_codes)[:20]
+
+    # vendors 테이블에 신규 공급사 삽입
+    if new_vendor_codes:
+        try:
+            prod_conn = sqlite3.connect(products_path)
+            try:
+                for vc in new_vendor_codes:
+                    prod_conn.execute(
+                        """INSERT OR IGNORE INTO vendors
+                           (vendor_code, vendor_name, source, product_count, status)
+                           VALUES (?, ?, 'oc_discovery', ?, 'discovered')""",
+                        [vc, f"자동발견_{vc}", scanned_vendors.get(vc, 0)],
+                    )
+                prod_conn.commit()
+            finally:
+                prod_conn.close()
+        except Exception as exc:
+            result["errors"].append(f"vendors 삽입 실패: {exc}")
+
+    # 메타 갱신
+    try:
+        cat_conn2 = sqlite3.connect(catalog_path)
+        try:
+            cat_conn2.execute(
+                "INSERT OR REPLACE INTO oc_catalog_meta VALUES ('last_discovery_scan_at', ?)", [now_iso])
+            cat_conn2.execute(
+                "INSERT OR REPLACE INTO oc_catalog_meta VALUES ('discovery_new_vendors', ?)",
+                [str(result["new_vendors"])])
+            cat_conn2.commit()
+        finally:
+            cat_conn2.close()
+    except Exception as exc:
+        result["errors"].append(f"메타 갱신 실패: {exc}")
+
+    result["duration_sec"] = round(time.monotonic() - t0, 1)
+
+    if progress_callback:
+        progress_callback(result["total_scanned"], result["total_scanned"],
+            f"완료 — 스캔 {result['total_scanned']:,}개 · "
+            f"신규 공급사 {result['new_vendors']}개 · "
+            f"기존 공급사 {result['known_vendors']}개")
+
+    logger.info("discovery_scan done: scanned=%d new_vendors=%d known=%d errors=%d",
+                result["total_scanned"], result["new_vendors"],
+                result["known_vendors"], len(result["errors"]))
+    return result
+
+
+def start_discovery_scan_bg() -> dict:
+    """경량 전체 스캔 (신규 공급사 발견) 백그라운드 시작."""
+    return _start_bg_job("discovery_scan", discovery_scan)
+
+
 def start_scan_from_csv_bg(csv_folder: str) -> dict:
     """CSV 파일 기반 전체 OC 스캔 백그라운드 시작 (~10시간). 중단 시 자동 재개."""
     # 이전 체크포인트 확인
