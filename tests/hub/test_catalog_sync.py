@@ -22,6 +22,18 @@ def set_db(test_db_path):
     conn.close()
 
 
+@pytest.fixture(autouse=True)
+def clean_catalog_artifacts(test_db_path):
+    """vendor_scan이 backfill한 상품 제거 (세션 DB 오염 방지)."""
+    yield
+    conn = sqlite3.connect(test_db_path)
+    # 원래 seed 상품 (W001-W004)만 유지
+    conn.execute("DELETE FROM products WHERE 상품코드 NOT IN ('W001', 'W002', 'W003', 'W004')")
+    conn.execute("DELETE FROM vendors")
+    conn.commit()
+    conn.close()
+
+
 @pytest.fixture
 def catalog_db(tmp_path):
     """임시 oc_catalog.db."""
