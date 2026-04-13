@@ -84,6 +84,7 @@ def test_vendor_scan_scans_active_vendors(test_db_path, catalog_db):
         from hub.services.catalog_service import vendor_scan
         result = vendor_scan()
 
+    assert result["errors"] == []
     assert result["scanned_vendors"] == 1
     assert result["total_items"] >= 2
 
@@ -130,6 +131,7 @@ def test_vendor_scan_detects_new_items(test_db_path, catalog_db):
         from hub.services.catalog_service import vendor_scan
         result = vendor_scan()
 
+    assert result["errors"] == []
     assert result["new_items"] >= 1  # W201 is new
 
 
@@ -140,3 +142,4 @@ def test_vendor_scan_endpoint_returns_started(client, test_db_path):
          patch("hub.services.catalog_service.vendor_scan", return_value={}):
         r = client.post("/api/catalog/vendor-scan/start")
     assert r.status_code == 200
+    assert r.json().get("started") is True
