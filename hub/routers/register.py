@@ -2,7 +2,14 @@
 """카테고리-스토어 배정 API."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+
+class AssignmentIn(BaseModel):
+    store_alias: str
+    oc_category_name: str
+
 
 router = APIRouter()
 
@@ -22,13 +29,16 @@ async def get_assignments(store_alias: str):
 
 
 @router.post("/api/register/assignments")
-async def add_assignment(body: dict):
+async def add_assignment(body: AssignmentIn):
     """카테고리 배정 추가. body: {store_alias, oc_category_name}."""
     from hub.services.register_service import add_assignment
-    return add_assignment(
-        store_alias=body["store_alias"],
-        oc_category_name=body["oc_category_name"],
-    )
+    try:
+        return add_assignment(
+            store_alias=body.store_alias,
+            oc_category_name=body.oc_category_name,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.delete("/api/register/assignments/{store_alias}")

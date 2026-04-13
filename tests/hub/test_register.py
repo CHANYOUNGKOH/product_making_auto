@@ -1,12 +1,23 @@
 # tests/hub/test_register.py
 """카테고리-스토어 배정 API 테스트."""
 import os
+import sqlite3
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def set_db(test_db_path):
     os.environ["HUB_DB_PATH"] = test_db_path
+
+
+@pytest.fixture(autouse=True)
+def clean_assignments(test_db_path):
+    """テスト間でstore_category_assignmentsをクリア."""
+    yield
+    conn = sqlite3.connect(test_db_path)
+    conn.execute("DELETE FROM store_category_assignments")
+    conn.commit()
+    conn.close()
 
 
 def test_get_assignments_empty(client):
