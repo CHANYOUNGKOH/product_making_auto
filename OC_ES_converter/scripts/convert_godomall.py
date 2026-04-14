@@ -91,8 +91,68 @@ def build_goods_must_info() -> str:
 
 
 def build_naver_tag(keyword_text: str) -> str:
-    keywords = [token.strip() for token in _safe_str(keyword_text).split(",") if token.strip()]
+    keywords = _parse_keyword_list(keyword_text)
     return "|".join(keywords)
+
+
+def _parse_keyword_list(keyword_text: str) -> list[str]:
+    """키워드 텍스트/JSON array → 깨끗한 문자열 리스트."""
+    import json as _json
+    raw = _safe_str(keyword_text)
+    if not raw:
+        return []
+    # JSON array인 경우 파싱
+    if raw.startswith("["):
+        try:
+            parsed = _json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(k).strip() for k in parsed if str(k).strip()]
+        except (ValueError, TypeError):
+            pass
+    # 쉼표 구분 텍스트
+    return [token.strip() for token in raw.split(",") if token.strip()]
+
+
+# 브랜드 코드 ↔ 할인율 매핑 (고도몰 쿠폰 시스템)
+BRAND_DISCOUNT_MAP = {
+    "001": 35,  # A등급
+    "002": 28,  # B등급
+    "003": 18,  # C등급
+    "004": 10,  # D등급
+}
+
+
+GODOMALL_DETAIL_NOTICE = (
+    '<p style="font-size: 12px; color: #777777; display: block; margin: 20px 0;">'
+    "본 제품을 구매하시면 원활한 배송을 위해 꼭 필요한 고객님의 개인정보를 "
+    "(성함, 주소, 전화번호 등) 택배사 및 제 3업체에서 이용하는 것에 동의하시는 것으로 간주됩니다.<br/>"
+    " 개인정보는 배송 외의 용도로는 절대 사용되지 않으니 안심하시기 바랍니다. 안전하게 배송해 드리겠습니다."
+    "</p>"
+)
+
+
+def _wrap_detail_html(detail_html: str) -> str:
+    """상세설명 앞뒤에 공통 콘텐츠 추가."""
+    if not detail_html:
+        return ""
+    # 이미 notice가 포함되어 있으면 스킵
+    if "원활한 배송을 위해" in detail_html:
+        return detail_html
+    if detail_html.endswith("</center>"):
+        return detail_html[:-9] + "<br>" + GODOMALL_DETAIL_NOTICE + "</center>"
+    return f"<center>{detail_html}<br>{GODOMALL_DETAIL_NOTICE}</center>"
+
+
+def _select_brand_code(discount_pct: float) -> str:
+    """할인율에 가장 가까운 브랜드 코드 반환."""
+    best_code = "004"
+    best_diff = float("inf")
+    for code, pct in BRAND_DISCOUNT_MAP.items():
+        diff = abs(pct - discount_pct)
+        if diff < best_diff:
+            best_diff = diff
+            best_code = code
+    return best_code
 
 
 def parse_ownerclan_combo_options(combo_text: str) -> list[tuple[str, str, str]]:
@@ -219,19 +279,21 @@ def convert_ownerclan_to_godomall(
         image_url = _safe_str(row.get("이미지대", ""))
         detail_html = _safe_str(row.get("본문상세설명", ""))
         detail_html = inject_alt_into_html(detail_html, _safe_str(row.get("상품코드", "")))
+        # 상세설명 앞뒤 공통 콘텐츠 추가
+        detail_html = _wrap_detail_html(detail_html)
         option_block = build_option_block(row)
 
-        # ── 가격 계산 ──────────────────────────────────────────────────────
+        # ── 가격 계산 + 브랜드 코드 결정 ─────────────────────────────────
         if strategy_id and ownerclan_price > 0:
             goods_price, discount_pct = _calc_price_with_strategy(
                 ownerclan_price, strategy_id
             )
-            goods_discount_fl = "y"
-            goods_discount = discount_pct
+            # 할인은 고도몰 브랜드 쿠폰으로 처리 → 브랜드 코드로 매핑
+            selected_brand = _select_brand_code(discount_pct)
         else:
             goods_price = ownerclan_price
-            goods_discount_fl = "n"
-            goods_discount = 0.0
+            discount_pct = 0.0
+            selected_brand = "004"  # 기본 D등급(10%)
 
         rows.append(
             {
@@ -241,12 +303,12 @@ def convert_ownerclan_to_godomall(
                 "goods_cd": _safe_str(row.get("상품코드", "")),
                 "category_code": str(category_code),
                 "purchase_goods_name": product_name,
-                "brand_code": str(brand_code),
+                "brand_code": selected_brand,
                 "pay_limit_fl": "n",
                 "model_no": "edit" + _safe_str(row.get("상품코드", "")),
                 "maker_name": _safe_str(row.get("제작/수입사", "")),
                 "origin_name": _safe_str(row.get("원산지", "")),
-                "search_word": _safe_str(row.get("키워드", "")),
+                "search_word": ",".join(_parse_keyword_list(row.get("키워드", ""))),
                 "deliverySno": str(delivery_sno),
                 "goods_price": goods_price,
                 "fixed_price": GODOMALL_DEFAULTS["fixed_price"],
@@ -280,8 +342,8 @@ def convert_ownerclan_to_godomall(
                 "stock_type": "y",
                 "mileage_type": "c",
                 "mileage_group": "all",
-                "goods_discount_fl": goods_discount_fl,
-                "goods_discount": goods_discount,
+                "goods_discount_fl": "n",
+                "goods_discount": 0,
                 "goods_discount_unit": "percent",
                 "fixed_sales": "option",
                 "sales_unit": 1,
@@ -334,7 +396,7 @@ def convert_ownerclan_to_godomall(
                 "seo_tag_fl": "y",
                 "set_tag_title": product_name,
                 "set_tag_description": product_name,
-                "set_tag_keyword": _safe_str(row.get("키워드", "")),
+                "set_tag_keyword": ",".join(_parse_keyword_list(row.get("키워드", ""))),
                 "fb_vn": "n",
                 "google_use_flag": "y",
             }
