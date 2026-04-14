@@ -124,10 +124,16 @@ def fetch_export_products(db_path: Path) -> list[dict]:
 
         # 필수 컬럼 (인코딩 불일치 대응: PRAGMA에서 실제 이름 매칭)
         required = []
+        cat_col = None
         for keyword in ["상품코드", "원본상품명"]:
             matches = [c for c in existing_cols if keyword in c]
             required.append(matches[0] if matches else keyword)
         required.append("oc_price")
+        # 카테고리명 (한글 인코딩 대응)
+        cat_matches = [c for c in existing_cols if c.endswith("명") and "ST" not in c and "상품" not in c]
+        if cat_matches:
+            cat_col = cat_matches[0]
+            required.append(cat_col)
 
         # 선택 컬럼 (키워드 매칭)
         optional_keywords = [
@@ -162,6 +168,8 @@ def fetch_export_products(db_path: Path) -> list[dict]:
             for k, v in r.items():
                 if k == nukki_col and nukki_col:
                     normalized["nukki_url"] = v
+                elif k == cat_col and cat_col:
+                    normalized["카테고리명"] = v
                 elif "상품코드" in k:
                     normalized["상품코드"] = v
                 elif "원본상품명" in k:
