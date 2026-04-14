@@ -13,8 +13,13 @@ Hub UI를 실제 운영 데이터에 맞게 정규화. 최종 목표: 주문만 
 ### 1. 상품 가공상태 불일치
 - `text_status`, `image_status` 컬럼 = **전부 NULL** (한 번도 세팅 안 됨)
 - 실제 가공 여부는 각 단계 컬럼 존재 여부로 판단해야 함:
-  - 텍스트 완료 = `product_names_json IS NOT NULL` (52,687 / 54,000 = 98%)
-  - 이미지 완료 = `누끼url IS NOT NULL AND 연출url IS NOT NULL` (43,406 / 54,000 = 80%)
+  - **텍스트 완료** = `ST4_마켓상품명 IS NOT NULL` (47,139 / 54,000 = 87%)
+    - 가공 체인: ST1→ST2→ST3→ST4 (ST4까지 있어야 완료)
+  - **이미지 3단계**:
+    - `없음` = 누끼url NULL (5,598건)
+    - `누끼만` = 누끼url 있고 연출url NULL (4,996건)
+    - `완료` = 누끼url + 연출url 모두 있음 (43,406건 = 80%)
+    - 추후: ST2_JSON 기반 생성형 이미지 파이프라인 추가 예정 (미진행)
   - ST2 완료 = `ST2_JSON IS NOT NULL` (43,218 / 54,000 = 80%)
 
 ### 2. 스토어 관리 + 등록 파이프라인 분리 불필요
@@ -68,14 +73,14 @@ Hub UI를 실제 운영 데이터에 맞게 정규화. 최종 목표: 주문만 
 
 가공 현황 카드 계산 SQL:
 ```sql
--- 텍스트 완료
-COUNT(CASE WHEN product_names_json IS NOT NULL AND product_names_json != '' THEN 1 END)
--- 이미지 완료
+-- 텍스트 완료 (ST4까지 완료)
+COUNT(CASE WHEN ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != '' THEN 1 END)
+-- 이미지 완료 (누끼+연출 모두)
 COUNT(CASE WHEN 누끼url IS NOT NULL AND 누끼url != '' AND 연출url IS NOT NULL AND 연출url != '' THEN 1 END)
--- ST2 완료
-COUNT(CASE WHEN ST2_JSON IS NOT NULL AND ST2_JSON != '' THEN 1 END)
--- 출고 가능 (텍스트+이미지+가격 모두 있음)
-COUNT(CASE WHEN product_names_json IS NOT NULL AND product_names_json != ''
+-- 이미지 부분 (누끼만)
+COUNT(CASE WHEN 누끼url IS NOT NULL AND 누끼url != '' AND (연출url IS NULL OR 연출url = '') THEN 1 END)
+-- 출고 가능 (ST4 + 누끼url + 가격)
+COUNT(CASE WHEN ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != ''
            AND 누끼url IS NOT NULL AND 누끼url != ''
            AND oc_price IS NOT NULL AND oc_price > 0 THEN 1 END)
 ```
@@ -84,9 +89,9 @@ COUNT(CASE WHEN product_names_json IS NOT NULL AND product_names_json != ''
 
 **변경**:
 - `text_status` / `image_status` 컬럼 → CASE WHEN 계산으로 대체
-  - 텍스트: `product_names_json` 존재 → 'done', 없으면 'todo'
-  - 이미지: `누끼url` + `연출url` 모두 존재 → 'done', 하나만 → 'partial', 없으면 'todo'
-- quick_filter 추가: `shippable` (출고 가능 = 텍스트+이미지+가격 모두 있음)
+  - 텍스트: `ST4_마켓상품명` 존재 → 'done', 없으면 'todo'
+  - 이미지: `누끼url` + `연출url` 모두 → 'done', 누끼만 → 'partial', 없으면 'todo'
+- quick_filter 추가: `shippable` (출고 가능 = ST4 + 누끼url + 가격 모두 있음)
 - 배송비 컬럼 추가: `oc_shipping_fee` / `oc_shipping_type`
 
 ### 3. 스토어 관리 (`#stores`) — 등록 파이프라인 통합
@@ -128,24 +133,27 @@ COUNT(CASE WHEN product_names_json IS NOT NULL AND product_names_json != ''
 
 ### 4. 공급사 관리 (`#vendors`)
 
-**버튼 정리**:
-```
-기존 4개 → 2개:
-  🔄 공급사 동기화     ← DB 공급사 추출 + vendor-scan 통합
-  📊 전체 현황 갱신    ← sync-existing (일간 자동이지만 수동도 가능)
+**기능 축소**:
+- 공급사 목록 테이블 (핵심 정보만)
+- 공급사 추가 (수동 등록 / OC에서 sync)
+- 공급사별 카테고리 분포 표시
 
-삭제:
-  - "전체 공급사 신규수집" (= vendor-scan/discovery-scan으로 대체됨)
-  - "전체 OC 스캔" (= discovery-scan으로 대체됨)
+**테이블 설계**:
 ```
+공급사코드 | 공급사명 | 전체DB → 활성화 → 가공완료 | 주요 카테고리 | 상태
+V001      | 테스트   | 24,917 → 1,482 → 1,200  | 생활>문구    | 활성
+```
+- **전체DB** = oc_catalog.db에서 해당 vendor의 전체 상품 수
+- **활성화** = oc_catalog.db에서 status='available' (정상 판매 가능)
+- **가공완료** = products.db에서 해당 vendor의 ST4_마켓상품명 있는 수
+- **주요 카테고리** = products.db 카테고리명 기준 최다 카테고리 (OC 카테고리)
+- 화살표(→)로 퍼널 관계 시각화
 
-**테이블 개선**:
+**버튼**:
 ```
-공급사코드 | 공급사명 | OC 상품수 → DB 상품 → 미가공 | 상태
-V001      | 테스트   | 24,917   → 1,482  → 1,200  | 대기
++ 공급사 추가    ← 수동 등록 폼
+🔄 동기화       ← vendor-scan (등록 공급사 최신화)
 ```
-- 화살표(→)로 관계 시각화
-- 미가공 = DB 상품 중 `product_names_json IS NULL` 기준
 
 ### 5. 삭제 페이지
 
