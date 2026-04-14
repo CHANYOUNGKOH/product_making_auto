@@ -8,9 +8,10 @@ window.renderDashboard = async function(container) {
         <div class="stat-card"><div class="stat-value" id="s-total">-</div><div class="stat-label">판매가능</div></div>
         <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-soldout">-</div><div class="stat-label">품절</div></div>
         <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-inactive">-</div><div class="stat-label">판매불가</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-text">-</div><div class="stat-label">텍스트 완료</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-img">-</div><div class="stat-label">이미지 완료</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-img-p">-</div><div class="stat-label">누끼만</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-text">-</div><div class="stat-label">상품명 완료</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-img-both">-</div><div class="stat-label">누끼+연출</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-img-nk">-</div><div class="stat-label">누끼만</div></div>
+        <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-img-none">-</div><div class="stat-label">원본만</div></div>
         <div class="stat-card"><div class="stat-value" id="s-ship">-</div><div class="stat-label">출고 가능</div></div>
       </div>
     </div>
@@ -38,8 +39,9 @@ window.renderDashboard = async function(container) {
     document.getElementById('s-soldout').textContent = (d.soldout||0).toLocaleString();
     document.getElementById('s-inactive').textContent = (d.inactive||0).toLocaleString();
     document.getElementById('s-text').textContent = (d.text_done||0).toLocaleString();
-    document.getElementById('s-img').textContent = (d.image_done||0).toLocaleString();
-    document.getElementById('s-img-p').textContent = (d.image_partial||0).toLocaleString();
+    document.getElementById('s-img-both').textContent = (d.image_done||0).toLocaleString();
+    document.getElementById('s-img-nk').textContent = (d.image_partial||0).toLocaleString();
+    document.getElementById('s-img-none').textContent = (d.image_none||0).toLocaleString();
     document.getElementById('s-ship').textContent = (d.shippable||0).toLocaleString();
     const shipBar = document.getElementById('shipping-bar');
     if (shipBar) {

@@ -233,6 +233,8 @@ def get_dashboard_stats() -> dict[str, Any]:
                            AND [{nk}] IS NOT NULL AND [{nk}] != ''
                            AND ([{yc}] IS NULL OR [{yc}] = '') THEN 1 END) as image_partial,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
+                           AND ([{nk}] IS NULL OR [{nk}] = '') THEN 1 END) as image_none,
+                COUNT(CASE WHEN product_status = 'ACTIVE'
                            AND [{st4}] IS NOT NULL AND [{st4}] != ''
                            AND [{nk}] IS NOT NULL AND [{nk}] != ''
                            AND oc_price IS NOT NULL AND oc_price > 0 THEN 1 END) as shippable,
@@ -254,6 +256,7 @@ def get_dashboard_stats() -> dict[str, Any]:
         "text_done": row["text_done"],
         "image_done": row["image_done"],
         "image_partial": row["image_partial"],
+        "image_none": row["image_none"],
         "shippable": row["shippable"],
         "shipping_free": row["shipping_free"],
         "shipping_conditional": row["shipping_conditional"],
