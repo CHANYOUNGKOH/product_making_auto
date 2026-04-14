@@ -6,7 +6,6 @@ const PAGES = {
   pipeline:          window.renderPipeline,
   export:            window.renderExport,
   stores:            window.renderStores,
-  'pipeline-register': window.renderPipelineRegister,
 };
 
 // -- 라우터 --
