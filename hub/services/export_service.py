@@ -90,7 +90,8 @@ def dry_run(
         oc_price = row["oc_price"]
         name = ""
         try:
-            name = json.loads(row["product_names_json"] or "{}").get("name", "")
+            nd = json.loads(row["product_names_json"] or "{}")
+            name = nd.get("name", "") if isinstance(nd, dict) else (nd[0] if isinstance(nd, list) and nd else str(nd))
         except Exception:
             name = row["product_names_json"] or ""
 

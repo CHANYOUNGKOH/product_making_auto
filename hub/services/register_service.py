@@ -123,7 +123,8 @@ def get_pipeline_preview(store_alias: str, strategy: str) -> dict:
     for r in rows:
         name = ""
         try:
-            name = json.loads(r["product_names_json"] or "{}").get("name", "")
+            nd = json.loads(r["product_names_json"] or "{}")
+            name = nd.get("name", "") if isinstance(nd, dict) else (nd[0] if isinstance(nd, list) and nd else str(nd))
         except Exception:
             name = r["product_names_json"] or ""
         items.append({

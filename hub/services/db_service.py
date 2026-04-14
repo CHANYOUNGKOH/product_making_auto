@@ -241,7 +241,12 @@ def get_products(
         name = ""
         try:
             name_data = json.loads(row["product_names_json"] or "{}")
-            name = name_data.get("name", "")
+            if isinstance(name_data, dict):
+                name = name_data.get("name", "")
+            elif isinstance(name_data, list) and name_data:
+                name = name_data[0]
+            else:
+                name = str(name_data)
         except (json.JSONDecodeError, TypeError):
             name = row["product_names_json"] or ""
 
