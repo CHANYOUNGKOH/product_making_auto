@@ -556,6 +556,27 @@ def sync_vendors_from_products(db_path: str | None = None) -> dict:
                 )
                 inserted += 1
 
+    # oc_catalog.db에서 product_count 채우기 (0인 공급사만)
+    try:
+        from hub.services.catalog_service import get_catalog_db_path
+        cat_path = get_catalog_db_path()
+        cat_conn = sqlite3.connect(cat_path)
+        oc_counts = dict(cat_conn.execute(
+            "SELECT vendor_code, COUNT(*) FROM oc_items "
+            "WHERE vendor_code IS NOT NULL GROUP BY vendor_code"
+        ).fetchall())
+        cat_conn.close()
+
+        with _conn(db_path) as con:
+            for vc, cnt in oc_counts.items():
+                con.execute(
+                    "UPDATE vendors SET product_count = ? "
+                    "WHERE vendor_code = ? AND (product_count IS NULL OR product_count = 0)",
+                    [cnt, vc],
+                )
+    except Exception:
+        pass  # oc_catalog.db 없으면 무시
+
     return {"inserted": inserted, "already": len(existing)}
 
 
