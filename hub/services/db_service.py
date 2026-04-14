@@ -379,13 +379,29 @@ def get_vendors(db_path: str | None = None) -> list[dict[str, Any]]:
                       COUNT(CASE WHEN p.product_status = 'ACTIVE'
                                   AND (p.text_status IS NULL OR p.text_status != 'done')
                              THEN 1 END) AS unprocessed_count,
-                      COUNT(CASE WHEN p.product_status = 'ACTIVE' THEN 1 END) AS active_count
+                      COUNT(CASE WHEN p.product_status = 'ACTIVE' THEN 1 END) AS active_count,
+                      COUNT(CASE WHEN p.product_status = 'ACTIVE'
+                                  AND p.ST4_마켓상품명 IS NOT NULL AND p.ST4_마켓상품명 != ''
+                             THEN 1 END) AS processed_count_live,
+                      (SELECT p2.카테고리명 FROM products p2
+                       WHERE p2.vendor_code = v.vendor_code
+                         AND p2.product_status = 'ACTIVE'
+                         AND p2.카테고리명 IS NOT NULL
+                       GROUP BY p2.카테고리명 ORDER BY COUNT(*) DESC LIMIT 1) AS top_category
                FROM vendors v
                LEFT JOIN products p ON p.vendor_code = v.vendor_code
                GROUP BY v.id
                ORDER BY v.vendor_name"""
         )
-        return [dict(row) for row in cur.fetchall()]
+        rows = cur.fetchall()
+
+    result = []
+    for row in rows:
+        d = dict(row)
+        # processed_count_live(실시간 ST4 완료 수)를 processed_count로 노출
+        d["processed_count"] = d.pop("processed_count_live")
+        result.append(d)
+    return result
 
 
 def upsert_vendor(
