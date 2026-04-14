@@ -118,7 +118,7 @@ window.renderVendors = async function(container) {
             <tr style="border-bottom:1px solid var(--border);color:var(--muted)">
               <th style="text-align:left;padding:6px 4px">코드</th>
               <th style="text-align:left;padding:6px 4px">공급사명</th>
-              <th style="text-align:left;padding:6px 4px">OC → 활성화 → 가공완료</th>
+              <th style="text-align:left;padding:6px 4px">OC 전체 → 가공시도 → 가공완료</th>
               <th style="text-align:left;padding:6px 4px">주요 카테고리</th>
               <th style="text-align:center;padding:6px 4px">상태</th>
             </tr>
@@ -131,7 +131,7 @@ window.renderVendors = async function(container) {
                 <td style="padding:6px 4px;font-size:13px">
                   <span style="color:var(--muted)">${(v.product_count||0).toLocaleString()}</span>
                   <span style="color:var(--muted)"> → </span>
-                  <span>${(v.active_count||0).toLocaleString()}</span>
+                  <span>${(v.tried_count||0).toLocaleString()}</span>
                   <span style="color:var(--muted)"> → </span>
                   <span style="color:var(--green)">${(v.processed_count||0).toLocaleString()}</span>
                 </td>

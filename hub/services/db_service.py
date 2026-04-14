@@ -452,34 +452,50 @@ def get_vendors(db_path: str | None = None) -> list[dict[str, Any]]:
 
     with _conn(db_path) as con:
         cur = con.cursor()
+
+        # 1단계: products 집계를 미리 계산 (vendor_code 기준 GROUP BY)
         cur.execute(
-            f"""SELECT v.id, v.vendor_code, v.vendor_name, v.source, v.product_count, v.category,
-                      v.oc_link, v.status, v.processed_count, v.last_imported_at,
-                      v.created_at, v.updated_at,
-                      COUNT(CASE WHEN p.product_status = 'ACTIVE'
-                                  AND (p.[{st4}] IS NULL OR p.[{st4}] = '')
-                             THEN 1 END) AS unprocessed_count,
-                      COUNT(CASE WHEN p.product_status = 'ACTIVE' THEN 1 END) AS active_count,
-                      COUNT(CASE WHEN p.product_status = 'ACTIVE'
-                                  AND p.[{st4}] IS NOT NULL AND p.[{st4}] != ''
-                             THEN 1 END) AS processed_count_live,
-                      (SELECT p2.[{cat_col}] FROM products p2
-                       WHERE p2.vendor_code = v.vendor_code
-                         AND p2.product_status = 'ACTIVE'
-                         AND p2.[{cat_col}] IS NOT NULL
-                       GROUP BY p2.[{cat_col}] ORDER BY COUNT(*) DESC LIMIT 1) AS top_category
-               FROM vendors v
-               LEFT JOIN products p ON p.vendor_code = v.vendor_code
-               GROUP BY v.id
-               ORDER BY v.vendor_name"""
+            f"""SELECT vendor_code,
+                       COUNT(*) as tried_count,
+                       COUNT(CASE WHEN [{st4}] IS NOT NULL AND [{st4}] != '' THEN 1 END) as processed_count
+                FROM products
+                WHERE vendor_code IS NOT NULL AND vendor_code != ''
+                GROUP BY vendor_code"""
+        )
+        prod_stats = {r["vendor_code"]: dict(r) for r in cur.fetchall()}
+
+        # 2단계: 카테고리 집계 (vendor_code 기준)
+        cur.execute(
+            f"""SELECT vendor_code, [{cat_col}] as cat, COUNT(*) as cnt
+                FROM products
+                WHERE vendor_code IS NOT NULL AND [{cat_col}] IS NOT NULL AND product_status = 'ACTIVE'
+                GROUP BY vendor_code, [{cat_col}]"""
+        )
+        cat_map: dict[str, str] = {}
+        cat_counts: dict[str, int] = {}
+        for r in cur.fetchall():
+            vc, cat, cnt = r["vendor_code"], r["cat"], r["cnt"]
+            if vc not in cat_counts or cnt > cat_counts[vc]:
+                cat_counts[vc] = cnt
+                cat_map[vc] = cat
+
+        # 3단계: vendors 테이블 조회 (JOIN 없이)
+        cur.execute(
+            """SELECT id, vendor_code, vendor_name, source, product_count, category,
+                      oc_link, status, processed_count, last_imported_at,
+                      created_at, updated_at
+               FROM vendors ORDER BY vendor_name"""
         )
         rows = cur.fetchall()
 
     result = []
     for row in rows:
         d = dict(row)
-        # processed_count_live(실시간 ST4 완료 수)를 processed_count로 노출
-        d["processed_count"] = d.pop("processed_count_live")
+        vc = d["vendor_code"]
+        ps = prod_stats.get(vc, {})
+        d["tried_count"] = ps.get("tried_count", 0)
+        d["processed_count"] = ps.get("processed_count", 0)
+        d["top_category"] = cat_map.get(vc, "")
         result.append(d)
     return result
 
