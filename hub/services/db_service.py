@@ -151,39 +151,46 @@ def run_migrations(db_path: str | None = None) -> None:
 # ── 대시보드 ──────────────────────────────────────────────────────────────────
 
 def get_dashboard_stats() -> dict[str, Any]:
+    """대시보드 통계 — 가공 현황 + 배송비."""
     with _conn() as con:
         cur = con.cursor()
-
-        cur.execute("SELECT COUNT(*) FROM products")
-        total_all = cur.fetchone()[0]
-
-        cur.execute(
-            "SELECT COUNT(*) FROM products WHERE product_status = 'ACTIVE'"
-        )
-        total_active = cur.fetchone()[0]
-
-        cur.execute(
-            "SELECT COUNT(*) FROM products "
-            "WHERE product_status = 'ACTIVE' AND oc_price IS NOT NULL AND oc_price > 0"
-        )
-        shippable = cur.fetchone()[0]
-
-        cur.execute(
-            "SELECT COUNT(*) FROM products "
-            "WHERE product_status = 'ACTIVE' "
-            "AND text_status = 'done' AND image_status = 'done'"
-        )
-        processed = cur.fetchone()[0]
-
-        cur.execute("SELECT MAX(oc_synced_at) FROM products")
-        last_sync_at = cur.fetchone()[0] or ""
+        cur.execute("""
+            SELECT
+                COUNT(*) as total_all,
+                COUNT(CASE WHEN product_status = 'ACTIVE' THEN 1 END) as total_active,
+                COUNT(CASE WHEN product_status = 'ACTIVE'
+                           AND ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != '' THEN 1 END) as text_done,
+                COUNT(CASE WHEN product_status = 'ACTIVE'
+                           AND 누끼url IS NOT NULL AND 누끼url != ''
+                           AND 연출url IS NOT NULL AND 연출url != '' THEN 1 END) as image_done,
+                COUNT(CASE WHEN product_status = 'ACTIVE'
+                           AND 누끼url IS NOT NULL AND 누끼url != ''
+                           AND (연출url IS NULL OR 연출url = '') THEN 1 END) as image_partial,
+                COUNT(CASE WHEN product_status = 'ACTIVE'
+                           AND ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != ''
+                           AND 누끼url IS NOT NULL AND 누끼url != ''
+                           AND oc_price IS NOT NULL AND oc_price > 0 THEN 1 END) as shippable,
+                COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE' THEN 1 END) as shipping_free,
+                COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE_ABOVE' THEN 1 END) as shipping_conditional,
+                COUNT(CASE WHEN product_status = 'ACTIVE'
+                           AND oc_shipping_type IS NOT NULL AND oc_shipping_type != ''
+                           AND oc_shipping_type NOT IN ('FREE', 'FREE_ABOVE') THEN 1 END) as shipping_paid
+            FROM products
+        """)
+        row = cur.fetchone()
+        last_sync = con.execute("SELECT MAX(oc_synced_at) FROM products").fetchone()[0]
 
     return {
-        "total_all":    total_all,
-        "total_active": total_active,
-        "shippable":    shippable,
-        "processed":    processed,
-        "last_sync_at": last_sync_at,
+        "total_all": row["total_all"],
+        "total_active": row["total_active"],
+        "text_done": row["text_done"],
+        "image_done": row["image_done"],
+        "image_partial": row["image_partial"],
+        "shippable": row["shippable"],
+        "shipping_free": row["shipping_free"],
+        "shipping_conditional": row["shipping_conditional"],
+        "shipping_paid": row["shipping_paid"],
+        "last_sync_at": last_sync or "",
     }
 
 

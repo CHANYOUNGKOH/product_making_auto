@@ -12,7 +12,9 @@ def set_db_env(test_db_path):
 def test_get_dashboard_stats_returns_required_keys():
     from hub.services.db_service import get_dashboard_stats
     stats = get_dashboard_stats()
-    for key in ("total_active", "shippable", "processed", "last_sync_at"):
+    for key in ("total_active", "shippable", "text_done", "image_done",
+                "image_partial", "shipping_free", "shipping_conditional",
+                "shipping_paid", "last_sync_at"):
         assert key in stats, f"Missing key: {key}"
 
 
@@ -28,10 +30,12 @@ def test_shippable_requires_oc_price():
     assert stats["shippable"] == 2  # W001(50000), W002(30000); W003 has no oc_price
 
 
-def test_processed_requires_both_statuses():
+def test_text_done_counts_st4_marketname():
     from hub.services.db_service import get_dashboard_stats
     stats = get_dashboard_stats()
-    assert stats["processed"] == 1  # W001 only (text_status=done AND image_status=done)
+    assert stats["text_done"] == 2    # W001, W002 (ST4_마켓상품명 있음)
+    assert stats["image_done"] == 1   # W001 only (누끼+연출 모두)
+    assert stats["image_partial"] == 1  # W002 (누끼만)
 
 
 def test_get_products_returns_active_only():
