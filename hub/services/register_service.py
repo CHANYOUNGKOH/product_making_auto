@@ -162,6 +162,20 @@ def get_db_path_fn() -> str:
     return get_db_path()
 
 
+def _get_export_counts(codes: list[str]) -> dict[str, int]:
+    """상품별 기존 출고 횟수 조회 (상품명/이미지 순환 인덱스용)."""
+    if not codes:
+        return {}
+    with _conn() as con:
+        placeholders = ",".join("?" * len(codes))
+        rows = con.execute(
+            f"SELECT 상품코드, COUNT(*) as cnt FROM market_registrations "
+            f"WHERE 상품코드 IN ({placeholders}) GROUP BY 상품코드",
+            codes,
+        ).fetchall()
+    return {r["상품코드"]: r["cnt"] for r in rows}
+
+
 def _record_ready(codes: list[str], store_alias: str, market: str,
                   strategy: str, pipeline_run_id: str, assignments: list[dict]) -> None:
     """상품 목록을 market_registrations에 READY로 기록."""
@@ -201,7 +215,11 @@ def run_godomall_pipeline(store_alias: str, strategy: str) -> dict:
     if not products:
         return {"error": "출고 대상 없음", "product_count": 0}
 
-    oc_df = build_oc_dataframe(products)
+    # 출고 카운터: 상품별 기존 등록 횟수 조회 (상품명/이미지 순환용)
+    codes = [p["상품코드"] for p in products]
+    export_counts = _get_export_counts(codes)
+
+    oc_df = build_oc_dataframe(products, export_counts=export_counts)
     godomall_df, _ = convert_ownerclan_to_godomall(oc_df, strategy_id=strategy)
 
     run_id = uuid.uuid4().hex[:8]
@@ -251,7 +269,10 @@ def run_esellers_pipeline(store_alias: str, strategy: str) -> dict:
     if not products:
         return {"error": "출고 대상 없음", "product_count": 0}
 
-    oc_df = build_oc_dataframe(products)
+    codes = [p["상품코드"] for p in products]
+    export_counts = _get_export_counts(codes)
+
+    oc_df = build_oc_dataframe(products, export_counts=export_counts)
     esellers_df, errors_df = convert_ownerclan_to_esellers(oc_df)
 
     run_id = uuid.uuid4().hex[:8]

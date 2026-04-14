@@ -57,33 +57,54 @@ def _options_json_to_combo(options_json: str | None) -> str:
     return "\n".join(lines)
 
 
-def _first_image(images_json: str | None, fallback_mix: str = "",
-                 fallback_nukki: str = "") -> str:
-    """oc_images_json 첫 번째 URL 반환. 없으면 믹스url/누끼url 순으로 폴백."""
+def _pick_image(images_json: str | None, fallback_nukki: str = "",
+                fallback_mix: str = "", index: int = 0) -> str:
+    """이미지 순환 선택. 우선순위: 누끼url > OC 원본 이미지.
+
+    index: 출고 카운터 (해당 상품의 누적 출고 횟수)
+    """
+    # 사용 가능한 이미지 목록 구성
+    candidates = []
+    if fallback_nukki:
+        candidates.append(fallback_nukki)
     if images_json:
         try:
             imgs = json.loads(images_json)
-            if isinstance(imgs, list) and imgs:
-                first = imgs[0]
-                if isinstance(first, str):
-                    return first
-                if isinstance(first, dict):
-                    return first.get("url", "") or first.get("src", "")
+            if isinstance(imgs, list):
+                for img in imgs:
+                    url = img if isinstance(img, str) else (img.get("url", "") or img.get("src", "") if isinstance(img, dict) else "")
+                    if url and url not in candidates:
+                        candidates.append(url)
         except (ValueError, TypeError):
             pass
-    return fallback_mix or fallback_nukki
+    if fallback_mix and fallback_mix not in candidates:
+        candidates.append(fallback_mix)
+    if not candidates:
+        return ""
+    return candidates[index % len(candidates)]
 
 
-def _first_product_name(names_json: str | None, fallback: str = "") -> str:
-    """product_names_json 첫 번째 이름. 없으면 원본상품명 폴백."""
+def _pick_product_name(names_json: str | None, fallback: str = "", index: int = 0) -> str:
+    """상품명 순환 선택. index: 출고 카운터 % 상품명 개수.
+
+    names_json: JSON array of product names (개수 가변)
+    """
     if names_json:
         try:
             names = json.loads(names_json)
             if isinstance(names, list) and names:
-                return names[0]
+                return names[index % len(names)]
         except (ValueError, TypeError):
             pass
     return fallback
+
+
+# 하위 호환 (기존 코드에서 호출하는 경우)
+def _first_image(images_json=None, fallback_mix="", fallback_nukki=""):
+    return _pick_image(images_json, fallback_nukki, fallback_mix, index=0)
+
+def _first_product_name(names_json=None, fallback=""):
+    return _pick_product_name(names_json, fallback, index=0)
 
 
 def fetch_export_products(db_path: Path) -> list[dict]:
@@ -101,14 +122,30 @@ def fetch_export_products(db_path: Path) -> list[dict]:
         cursor.execute("PRAGMA table_info(products)")
         existing_cols = {row[1] for row in cursor.fetchall()}
 
-        # 필수 + 선택 컬럼 목록
-        required = ["상품코드", "원본상품명", "oc_price"]
-        optional = [
+        # 필수 컬럼 (인코딩 불일치 대응: PRAGMA에서 실제 이름 매칭)
+        required = []
+        for keyword in ["상품코드", "원본상품명"]:
+            matches = [c for c in existing_cols if keyword in c]
+            required.append(matches[0] if matches else keyword)
+        required.append("oc_price")
+
+        # 선택 컬럼 (키워드 매칭)
+        optional_keywords = [
             "product_names_json", "oc_options_json", "oc_images_json",
             "oc_content", "oc_search_keywords", "oc_shipping_fee",
-            "oc_shipping_type", "믹스url", "누끼url",
+            "oc_shipping_type",
         ]
-        select_cols = required + [c for c in optional if c in existing_cols]
+        optional_found = [c for c in optional_keywords if c in existing_cols]
+
+        # 누끼url, 믹스url (한글 인코딩 컬럼 — url로 끝나는 컬럼 동적 매칭)
+        url_cols = sorted(c for c in existing_cols if c.endswith("url") and not c.startswith("oc"))
+        # url_cols[0]=누끼url, url_cols[1]=연출url (있으면)
+        nukki_col = url_cols[0] if len(url_cols) >= 1 else None
+        # 믹스url은 없을 수 있음
+
+        select_cols = required + optional_found
+        if nukki_col:
+            select_cols.append(nukki_col)
 
         col_str = ", ".join(f'"{c}"' for c in select_cols)
         cursor.execute(
@@ -116,29 +153,58 @@ def fetch_export_products(db_path: Path) -> list[dict]:
             "WHERE product_status = 'ACTIVE' "
             "AND oc_price IS NOT NULL AND oc_price > 0"
         )
-        rows = [dict(r) for r in cursor.fetchall()]
+        raw_rows = [dict(r) for r in cursor.fetchall()]
+
+        # 컬럼명 정규화: 인코딩 불일치 대응
+        rows = []
+        for r in raw_rows:
+            normalized = {}
+            for k, v in r.items():
+                if k == nukki_col and nukki_col:
+                    normalized["nukki_url"] = v
+                elif "상품코드" in k:
+                    normalized["상품코드"] = v
+                elif "원본상품명" in k:
+                    normalized["원본상품명"] = v
+                else:
+                    normalized[k] = v
+            rows.append(normalized)
+
         logger.info("출고 대상: %d개 상품", len(rows))
         return rows
     finally:
         conn.close()
 
 
-def build_oc_dataframe(rows: list[dict]):
-    """DB 조회 결과 → convert_ownerclan_to_godomall 입력 DataFrame."""
+def build_oc_dataframe(rows: list[dict], export_counts: dict[str, int] | None = None):
+    """DB 조회 결과 → convert_ownerclan_to_godomall 입력 DataFrame.
+
+    Args:
+        rows: fetch_export_products 결과
+        export_counts: {상품코드: 기존출고횟수} — 상품명/이미지 순환 인덱스 결정.
+                       None이면 전부 0 (첫 출고).
+    """
     import pandas as pd
+
+    if export_counts is None:
+        export_counts = {}
 
     records = []
     for r in rows:
+        code = r.get("상품코드", "")
+        idx = export_counts.get(code, 0)  # 출고 카운터
+
         records.append({
-            "상품코드":     r.get("상품코드", ""),
+            "상품코드":     code,
             "오너클랜판매가": r.get("oc_price") or 0,
-            "마켓상품명":    _first_product_name(
-                r.get("product_names_json"), r.get("원본상품명", "")
+            "마켓상품명":    _pick_product_name(
+                r.get("product_names_json"), r.get("원본상품명", ""), index=idx,
             ),
-            "이미지대":      _first_image(
+            "이미지대":      _pick_image(
                 r.get("oc_images_json"),
-                r.get("mix_url", ""),
-                r.get("nukki_url", ""),
+                fallback_nukki=r.get("nukki_url", ""),
+                fallback_mix=r.get("mix_url", ""),
+                index=idx,
             ),
             "본문상세설명":  r.get("oc_content", ""),
             "조합형옵션":    _options_json_to_combo(r.get("oc_options_json")),
