@@ -236,7 +236,6 @@ def get_dashboard_stats() -> dict[str, Any]:
                            AND ([{nk}] IS NULL OR [{nk}] = '') THEN 1 END) as image_none,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
                            AND [{st4}] IS NOT NULL AND [{st4}] != ''
-                           AND [{nk}] IS NOT NULL AND [{nk}] != ''
                            AND oc_price IS NOT NULL AND oc_price > 0 THEN 1 END) as shippable,
                 COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE' THEN 1 END) as shipping_free,
                 COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE_ABOVE' THEN 1 END) as shipping_conditional,
@@ -301,7 +300,6 @@ def get_products(
         clauses.append("(export_log IS NULL OR export_log = '[]')")
     elif quick_filter == "shippable":
         clauses.append(f"""[{st4}] IS NOT NULL AND [{st4}] != ''
-                          AND [{nk}] IS NOT NULL AND [{nk}] != ''
                           AND oc_price IS NOT NULL AND oc_price > 0""")
     elif quick_filter not in ("all", "partial_market", ""):
         raise ValueError(f"Unknown quick_filter: {quick_filter!r}")
