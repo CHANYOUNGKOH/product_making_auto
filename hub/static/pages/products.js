@@ -61,7 +61,7 @@ function renderTable(data) {
           title="${p.상품명}">${p.상품명}</td>
       <td style="color:var(--muted);font-size:13px">${p.카테고리명}</td>
       <td style="color:var(--yellow)">${p.oc_price != null ? p.oc_price.toLocaleString() + '원' : '-'}</td>
-      <td style="font-size:12px;color:var(--muted)">${p.oc_shipping_type || '-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${{FREE:'무료',FREE_ABOVE:'조건부무료',inAdvance:'선불',착불:'착불',PAID:'유료'}[p.oc_shipping_type]||p.oc_shipping_type||'-'}</td>
       <td>${statusPill(p.text_status)}</td>
       <td>${imgStatusPill(p.image_status)}</td>
       <td>${storeTagsHtml(p.export_log)}</td>

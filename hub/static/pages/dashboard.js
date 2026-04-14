@@ -4,7 +4,10 @@ window.renderDashboard = async function(container) {
     <div class="card">
       <h3 style="font-size:16px;margin-bottom:16px">가공 현황</h3>
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-value" id="s-total">-</div><div class="stat-label">전체 ACTIVE</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-all">-</div><div class="stat-label">전체 DB</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-total">-</div><div class="stat-label">판매가능</div></div>
+        <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-soldout">-</div><div class="stat-label">품절</div></div>
+        <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-inactive">-</div><div class="stat-label">판매불가</div></div>
         <div class="stat-card"><div class="stat-value" id="s-text">-</div><div class="stat-label">텍스트 완료</div></div>
         <div class="stat-card"><div class="stat-value" id="s-img">-</div><div class="stat-label">이미지 완료</div></div>
         <div class="stat-card"><div class="stat-value" id="s-img-p">-</div><div class="stat-label">누끼만</div></div>
@@ -30,7 +33,10 @@ window.renderDashboard = async function(container) {
 
   // 가공 현황 + 배송비 통계 로드
   fetch('/api/dashboard').then(r => r.json()).then(d => {
+    document.getElementById('s-all').textContent = (d.total_all||0).toLocaleString();
     document.getElementById('s-total').textContent = (d.total_active||0).toLocaleString();
+    document.getElementById('s-soldout').textContent = (d.soldout||0).toLocaleString();
+    document.getElementById('s-inactive').textContent = (d.inactive||0).toLocaleString();
     document.getElementById('s-text').textContent = (d.text_done||0).toLocaleString();
     document.getElementById('s-img').textContent = (d.image_done||0).toLocaleString();
     document.getElementById('s-img-p').textContent = (d.image_partial||0).toLocaleString();

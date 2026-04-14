@@ -240,7 +240,9 @@ def get_dashboard_stats() -> dict[str, Any]:
                 COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE_ABOVE' THEN 1 END) as shipping_conditional,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
                            AND oc_shipping_type IS NOT NULL AND oc_shipping_type != ''
-                           AND oc_shipping_type NOT IN ('FREE', 'FREE_ABOVE') THEN 1 END) as shipping_paid
+                           AND oc_shipping_type NOT IN ('FREE', 'FREE_ABOVE') THEN 1 END) as shipping_paid,
+                COUNT(CASE WHEN product_status = 'SOLDOUT' THEN 1 END) as soldout,
+                COUNT(CASE WHEN product_status = 'INACTIVE' THEN 1 END) as inactive
             FROM products
         """)
         row = cur.fetchone()
@@ -256,6 +258,8 @@ def get_dashboard_stats() -> dict[str, Any]:
         "shipping_free": row["shipping_free"],
         "shipping_conditional": row["shipping_conditional"],
         "shipping_paid": row["shipping_paid"],
+        "soldout": row["soldout"],
+        "inactive": row["inactive"],
         "last_sync_at": last_sync or "",
     }
 

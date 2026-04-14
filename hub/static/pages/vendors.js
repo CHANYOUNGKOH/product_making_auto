@@ -137,8 +137,8 @@ window.renderVendors = async function(container) {
                 </td>
                 <td style="padding:6px 4px;font-size:12px;color:var(--muted)">${v.top_category||'-'}</td>
                 <td style="text-align:center;padding:6px 4px">
-                  <span class="${v.status==='active'?'pill-done':v.status==='pending'?'pill-progress':'pill-todo'}">
-                    ${v.status||'대기'}
+                  <span class="${v.status==='active'?'pill-done':v.status==='pending'?'pill-progress':v.status==='discovered'?'pill-progress':'pill-todo'}">
+                    ${{active:'활성',pending:'대기',discovered:'신규발견',inactive:'비활성'}[v.status]||v.status||'대기'}
                   </span>
                 </td>
               </tr>
