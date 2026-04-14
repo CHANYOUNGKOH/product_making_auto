@@ -220,6 +220,10 @@ def get_products(
         clauses.append("oc_price IS NOT NULL AND oc_price > 0")
     elif quick_filter == "no_market":
         clauses.append("(export_log IS NULL OR export_log = '[]')")
+    elif quick_filter == "shippable":
+        clauses.append("""ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != ''
+                          AND 누끼url IS NOT NULL AND 누끼url != ''
+                          AND oc_price IS NOT NULL AND oc_price > 0""")
     elif quick_filter not in ("all", "partial_market", ""):
         raise ValueError(f"Unknown quick_filter: {quick_filter!r}")
     # "all" and "partial_market" add no clause (partial_market not yet implemented)
@@ -234,7 +238,11 @@ def get_products(
 
         cur.execute(
             f"""SELECT 상품코드, product_names_json, 카테고리명,
-                       oc_price, text_status, image_status,
+                       oc_price, oc_shipping_fee, oc_shipping_type,
+                       CASE WHEN ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != '' THEN 'done' ELSE 'todo' END as text_status,
+                       CASE WHEN 누끼url IS NOT NULL AND 누끼url != '' AND 연출url IS NOT NULL AND 연출url != '' THEN 'done'
+                            WHEN 누끼url IS NOT NULL AND 누끼url != '' THEN 'partial'
+                            ELSE 'todo' END as image_status,
                        export_log, registered_stores, oc_synced_at
                 FROM products WHERE {where}
                 ORDER BY 상품코드
@@ -262,8 +270,10 @@ def get_products(
             "상품명": name,
             "카테고리명": row["카테고리명"] or "",
             "oc_price": row["oc_price"],
-            "text_status": row["text_status"] or "todo",
-            "image_status": row["image_status"] or "todo",
+            "oc_shipping_fee": row["oc_shipping_fee"],
+            "oc_shipping_type": row["oc_shipping_type"] or "",
+            "text_status": row["text_status"],
+            "image_status": row["image_status"],
             "export_log": json.loads(row["export_log"] or "[]"),
             "registered_stores": json.loads(row["registered_stores"] or "[]"),
             "oc_synced_at": row["oc_synced_at"] or "",

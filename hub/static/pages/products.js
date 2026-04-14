@@ -19,6 +19,16 @@ function statusPill(s) {
   return '<span class="pill pill-todo">미완료</span>';
 }
 
+function imgStatusPill(s) {
+  const imgClass = s === 'done' ? 'pill-done'
+                 : s === 'partial' ? 'pill-progress'
+                 : 'pill-todo';
+  const imgLabel = s === 'done' ? '완료'
+                 : s === 'partial' ? '누끼만'
+                 : '미완료';
+  return `<span class="pill ${imgClass}">${imgLabel}</span>`;
+}
+
 function storeTagsHtml(stores) {
   if (!stores || stores.length === 0) return '<span style="color:var(--muted)">-</span>';
   const visible = stores.slice(0, 4).map(s => marketTag(s.store || s)).join('');
@@ -41,7 +51,7 @@ function renderTable(data) {
   const tbody = document.getElementById('products-tbody');
   if (!tbody) return;
   if (data.items.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">상품 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">상품 없음</td></tr>';
     return;
   }
   tbody.innerHTML = data.items.map(p => `
@@ -51,8 +61,9 @@ function renderTable(data) {
           title="${p.상품명}">${p.상품명}</td>
       <td style="color:var(--muted);font-size:13px">${p.카테고리명}</td>
       <td style="color:var(--yellow)">${p.oc_price != null ? p.oc_price.toLocaleString() + '원' : '-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${p.oc_shipping_type || '-'}</td>
       <td>${statusPill(p.text_status)}</td>
-      <td>${statusPill(p.image_status)}</td>
+      <td>${imgStatusPill(p.image_status)}</td>
       <td>${storeTagsHtml(p.export_log)}</td>
       <td style="color:var(--muted);font-size:12px">${p.oc_synced_at ? p.oc_synced_at.slice(0,10) : '-'}</td>
     </tr>
@@ -77,7 +88,7 @@ async function refresh() {
     renderTable(data);
   } catch (e) {
     const tbody = document.getElementById('products-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="color:var(--red);padding:20px">로드 실패 — 새로고침 해주세요</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="color:var(--red);padding:20px">로드 실패 — 새로고침 해주세요</td></tr>';
   }
 }
 
@@ -108,7 +119,7 @@ window.renderProducts = async function(container) {
         ${catOptions}
       </select>
       <div style="display:flex;gap:8px">
-        ${['all|전체','has_oc_price|OC가격있음','no_market|마켓미배정'].map(opt => {
+        ${['all|전체','has_oc_price|OC가격있음','no_market|마켓미배정','shippable|출고 가능'].map(opt => {
           const [val, label] = opt.split('|');
           const active = _state.quick_filter === val;
           return `<button class="btn ${active ? 'btn-primary' : ''}" data-qf="${val}"
@@ -121,10 +132,10 @@ window.renderProducts = async function(container) {
       <table>
         <thead><tr>
           <th>상품코드</th><th>상품명</th><th>카테고리</th>
-          <th>OC 원가</th><th>텍스트</th><th>이미지</th>
+          <th>OC 원가</th><th>배송</th><th>텍스트</th><th>이미지</th>
           <th>출고 스토어</th><th>동기화</th>
         </tr></thead>
-        <tbody id="products-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">로딩 중...</td></tr></tbody>
+        <tbody id="products-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:40px">로딩 중...</td></tr></tbody>
       </table>
     </div>
     <div id="pagination" style="display:flex;gap:12px;align-items:center;margin-top:16px"></div>
