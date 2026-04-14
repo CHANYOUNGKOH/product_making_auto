@@ -47,6 +47,67 @@ def _conn(db_path: str | None = None):
         con.close()
 
 
+# ── 컬럼명 매핑 (DB가 CP949로 생성됨 → 런타임에 실제 이름 조회) ──────────────
+
+_col_cache: dict[str, str] = {}
+
+
+def _resolve_col(keyword: str, db_path: str | None = None) -> str:
+    """PRAGMA table_info에서 keyword를 포함하는 컬럼의 실제 이름 반환."""
+    cache_key = f"{keyword}:{db_path or ''}"
+    if cache_key in _col_cache:
+        return _col_cache[cache_key]
+    path = db_path or get_db_path()
+    con = sqlite3.connect(path)
+    try:
+        cols = [r[1] for r in con.execute("PRAGMA table_info(products)").fetchall()]
+        for c in cols:
+            if keyword in c:
+                _col_cache[cache_key] = c
+                return c
+    finally:
+        con.close()
+    return keyword  # fallback
+
+
+def _pcols(db_path: str | None = None) -> dict[str, str]:
+    """자주 쓰는 한글 컬럼명 dict 반환. DB 인코딩 불일치 대응."""
+    path = db_path or get_db_path()
+    con = sqlite3.connect(path)
+    try:
+        cols = [r[1] for r in con.execute("PRAGMA table_info(products)").fetchall()]
+    finally:
+        con.close()
+
+    result = {}
+    for c in cols:
+        if "ST4" in c:
+            result["ST4"] = c
+        elif "ST2_JSON" in c:
+            result["ST2_JSON"] = c
+        elif "ST3" in c and "ST3" not in result:
+            result["ST3"] = c
+
+    # url 컬럼: 'XXXurl' 패턴 (oc_synced_at 등 제외)
+    url_cols = [c for c in cols if c.endswith("url")]
+    if len(url_cols) >= 2:
+        result["누끼"] = url_cols[0]  # 누끼url (첫번째)
+        result["연출"] = url_cols[1]  # 연출url (두번째)
+    elif len(url_cols) == 1:
+        result["누끼"] = url_cols[0]
+
+    # 카테고리명: 'XX명' 패턴에서 카테고리 포함
+    for c in cols:
+        cbytes = c.encode("utf-8")
+        # '카테고리명'은 products 테이블에서 유일한 '명'으로 끝나는 한글+명 컬럼
+        if c.endswith("명") and "ST" not in c and "상품" not in c:
+            # 여러 '명' 컬럼 중 카테고리명은 보통 첫번째
+            if "카테고리명" not in result:
+                result["카테고리명"] = c
+
+    return result
+
+
 # ── 마이그레이션 ──────────────────────────────────────────────────────────────
 
 _HUB_COLUMNS = [
@@ -152,23 +213,28 @@ def run_migrations(db_path: str | None = None) -> None:
 
 def get_dashboard_stats() -> dict[str, Any]:
     """대시보드 통계 — 가공 현황 + 배송비."""
+    pc = _pcols()
+    st4 = pc.get("ST4", "ST4_마켓상품명")
+    nk = pc.get("누끼", "누끼url")
+    yc = pc.get("연출", "연출url")
+
     with _conn() as con:
         cur = con.cursor()
-        cur.execute("""
+        cur.execute(f"""
             SELECT
                 COUNT(*) as total_all,
                 COUNT(CASE WHEN product_status = 'ACTIVE' THEN 1 END) as total_active,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
-                           AND ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != '' THEN 1 END) as text_done,
+                           AND [{st4}] IS NOT NULL AND [{st4}] != '' THEN 1 END) as text_done,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
-                           AND 누끼url IS NOT NULL AND 누끼url != ''
-                           AND 연출url IS NOT NULL AND 연출url != '' THEN 1 END) as image_done,
+                           AND [{nk}] IS NOT NULL AND [{nk}] != ''
+                           AND [{yc}] IS NOT NULL AND [{yc}] != '' THEN 1 END) as image_done,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
-                           AND 누끼url IS NOT NULL AND 누끼url != ''
-                           AND (연출url IS NULL OR 연출url = '') THEN 1 END) as image_partial,
+                           AND [{nk}] IS NOT NULL AND [{nk}] != ''
+                           AND ([{yc}] IS NULL OR [{yc}] = '') THEN 1 END) as image_partial,
                 COUNT(CASE WHEN product_status = 'ACTIVE'
-                           AND ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != ''
-                           AND 누끼url IS NOT NULL AND 누끼url != ''
+                           AND [{st4}] IS NOT NULL AND [{st4}] != ''
+                           AND [{nk}] IS NOT NULL AND [{nk}] != ''
                            AND oc_price IS NOT NULL AND oc_price > 0 THEN 1 END) as shippable,
                 COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE' THEN 1 END) as shipping_free,
                 COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE_ABOVE' THEN 1 END) as shipping_conditional,
@@ -204,6 +270,12 @@ def get_products(
     per_page: int = 100,
 ) -> dict[str, Any]:
     """상품 목록 조회 (검색/필터/페이지네이션)."""
+    pc = _pcols()
+    st4 = pc.get("ST4", "ST4_마켓상품명")
+    nk = pc.get("누끼", "누끼url")
+    yc = pc.get("연출", "연출url")
+    cat_col = pc.get("카테고리명", "카테고리명")
+
     clauses = ["product_status = 'ACTIVE'"]
     params: list[Any] = []
 
@@ -212,7 +284,7 @@ def get_products(
         params += [f"%{q}%", f"%{q}%"]
 
     if category:
-        clauses.append("카테고리명 = ?")
+        clauses.append(f"[{cat_col}] = ?")
         params.append(category)
 
     # quick_filter 처리
@@ -221,12 +293,11 @@ def get_products(
     elif quick_filter == "no_market":
         clauses.append("(export_log IS NULL OR export_log = '[]')")
     elif quick_filter == "shippable":
-        clauses.append("""ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != ''
-                          AND 누끼url IS NOT NULL AND 누끼url != ''
+        clauses.append(f"""[{st4}] IS NOT NULL AND [{st4}] != ''
+                          AND [{nk}] IS NOT NULL AND [{nk}] != ''
                           AND oc_price IS NOT NULL AND oc_price > 0""")
     elif quick_filter not in ("all", "partial_market", ""):
         raise ValueError(f"Unknown quick_filter: {quick_filter!r}")
-    # "all" and "partial_market" add no clause (partial_market not yet implemented)
 
     where = " AND ".join(clauses)
     offset = (page - 1) * per_page
@@ -237,11 +308,11 @@ def get_products(
         total = cur.fetchone()[0]
 
         cur.execute(
-            f"""SELECT 상품코드, product_names_json, 카테고리명,
+            f"""SELECT 상품코드, product_names_json, [{cat_col}] as 카테고리명,
                        oc_price, oc_shipping_fee, oc_shipping_type,
-                       CASE WHEN ST4_마켓상품명 IS NOT NULL AND ST4_마켓상품명 != '' THEN 'done' ELSE 'todo' END as text_status,
-                       CASE WHEN 누끼url IS NOT NULL AND 누끼url != '' AND 연출url IS NOT NULL AND 연출url != '' THEN 'done'
-                            WHEN 누끼url IS NOT NULL AND 누끼url != '' THEN 'partial'
+                       CASE WHEN [{st4}] IS NOT NULL AND [{st4}] != '' THEN 'done' ELSE 'todo' END as text_status,
+                       CASE WHEN [{nk}] IS NOT NULL AND [{nk}] != '' AND [{yc}] IS NOT NULL AND [{yc}] != '' THEN 'done'
+                            WHEN [{nk}] IS NOT NULL AND [{nk}] != '' THEN 'partial'
                             ELSE 'todo' END as image_status,
                        export_log, registered_stores, oc_synced_at
                 FROM products WHERE {where}
@@ -283,12 +354,13 @@ def get_products(
 
 
 def get_categories() -> list[str]:
+    cat_col = _pcols().get("카테고리명", "카테고리명")
     with _conn() as con:
         cur = con.cursor()
         cur.execute(
-            "SELECT DISTINCT 카테고리명 FROM products "
-            "WHERE product_status = 'ACTIVE' AND 카테고리명 IS NOT NULL AND 카테고리명 != '' "
-            "ORDER BY 카테고리명"
+            f"SELECT DISTINCT [{cat_col}] FROM products "
+            f"WHERE product_status = 'ACTIVE' AND [{cat_col}] IS NOT NULL AND [{cat_col}] != '' "
+            f"ORDER BY [{cat_col}]"
         )
         return [row[0] for row in cur.fetchall()]
 
@@ -370,24 +442,28 @@ def parse_stores_from_excel(file_bytes: bytes) -> list[dict]:
 # ── 공급사 관리 ───────────────────────────────────────────────────────────────
 
 def get_vendors(db_path: str | None = None) -> list[dict[str, Any]]:
+    pc = _pcols(db_path)
+    st4 = pc.get("ST4", "ST4_마켓상품명")
+    cat_col = pc.get("카테고리명", "카테고리명")
+
     with _conn(db_path) as con:
         cur = con.cursor()
         cur.execute(
-            """SELECT v.id, v.vendor_code, v.vendor_name, v.source, v.product_count, v.category,
+            f"""SELECT v.id, v.vendor_code, v.vendor_name, v.source, v.product_count, v.category,
                       v.oc_link, v.status, v.processed_count, v.last_imported_at,
                       v.created_at, v.updated_at,
                       COUNT(CASE WHEN p.product_status = 'ACTIVE'
-                                  AND (p.text_status IS NULL OR p.text_status != 'done')
+                                  AND (p.[{st4}] IS NULL OR p.[{st4}] = '')
                              THEN 1 END) AS unprocessed_count,
                       COUNT(CASE WHEN p.product_status = 'ACTIVE' THEN 1 END) AS active_count,
                       COUNT(CASE WHEN p.product_status = 'ACTIVE'
-                                  AND p.ST4_마켓상품명 IS NOT NULL AND p.ST4_마켓상품명 != ''
+                                  AND p.[{st4}] IS NOT NULL AND p.[{st4}] != ''
                              THEN 1 END) AS processed_count_live,
-                      (SELECT p2.카테고리명 FROM products p2
+                      (SELECT p2.[{cat_col}] FROM products p2
                        WHERE p2.vendor_code = v.vendor_code
                          AND p2.product_status = 'ACTIVE'
-                         AND p2.카테고리명 IS NOT NULL
-                       GROUP BY p2.카테고리명 ORDER BY COUNT(*) DESC LIMIT 1) AS top_category
+                         AND p2.[{cat_col}] IS NOT NULL
+                       GROUP BY p2.[{cat_col}] ORDER BY COUNT(*) DESC LIMIT 1) AS top_category
                FROM vendors v
                LEFT JOIN products p ON p.vendor_code = v.vendor_code
                GROUP BY v.id
