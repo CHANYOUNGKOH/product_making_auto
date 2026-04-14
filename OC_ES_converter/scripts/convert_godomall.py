@@ -170,27 +170,63 @@ def parse_ownerclan_combo_options(combo_text: str) -> list[tuple[str, str, str]]
     return options
 
 
-def build_option_block(row: pd.Series) -> dict:
+def build_option_block(row: pd.Series, market_price: int = 0) -> dict:
+    """옵션 블록 생성. 스마트스토어 옵션가격 보정 정책 적용.
+
+    - 단품(옵션 없음): 옵션 1개 생성, 추가금 0원
+    - 옵션 있음: 최저가 옵션을 0원(기본)으로, 나머지는 추가금(차액)
+    - OptionPriceCorrector로 추가금 상한/하한 보정
+    """
     combo_text = row.get("조합형옵션", "")
     options = parse_ownerclan_combo_options(combo_text)
+
     if not options:
+        # 단품 → 옵션 1개 (기본, +0원)
         return {
-            "option_yn": "n",
-            "option_display": "",
-            "option_name": "",
-            "option_value": "",
+            "option_yn": "y",
+            "option_display": "s",
+            "option_name": "옵션선택",
+            "option_value": "기본",
             "option_image": "",
-            "option_cost_price": "",
-            "option_price": "",
+            "option_cost_price": "0",
+            "option_price": "0",
             "stock_cnt": "999",
-            "option_view_fl": "",
-            "option_sell_fl": "",
-            "option_delivery_fl": "",
+            "option_view_fl": "y",
+            "option_sell_fl": "y",
+            "option_delivery_fl": "y",
         }
 
+    # 옵션 가격 → 추가금 변환 (최저가 = 0원 기준)
+    prices = []
+    for _, price_str, _ in options:
+        try:
+            prices.append(int(float(str(price_str).replace(",", ""))))
+        except (ValueError, TypeError):
+            prices.append(0)
+
+    min_price = min(prices) if prices else 0
+    # 추가금 = 옵션가격 - 최저가
+    deltas = [p - min_price for p in prices]
+
+    # OptionPriceCorrector로 추가금 보정 (스마트스토어 정책)
+    if market_price > 0 and any(d > 0 for d in deltas):
+        try:
+            _ROOT_path = Path(__file__).resolve().parent.parent.parent
+            import sys as _sys
+            if str(_ROOT_path) not in _sys.path:
+                _sys.path.insert(0, str(_ROOT_path))
+            from Upload_Mapper.rules.option_price_correction import OptionPriceCorrector
+            has_zero = any(d == 0 for d in deltas)
+            max_delta = OptionPriceCorrector.calculate_max_delta(market_price)
+            deltas = OptionPriceCorrector.redistribute_deltas(
+                deltas, max_delta, has_zero, market_price
+            )
+        except ImportError:
+            pass  # 모듈 없으면 원본 deltas 사용
+
     option_values = [value for value, _, _ in options]
-    option_prices = [price for _, price, _ in options]
     option_rows = len(options)
+
     return {
         "option_yn": "y",
         "option_display": "s",
@@ -198,7 +234,7 @@ def build_option_block(row: pd.Series) -> dict:
         "option_value": "\n".join(option_values),
         "option_image": "",
         "option_cost_price": "\n".join(["0"] * option_rows),
-        "option_price": "\n".join(option_prices),
+        "option_price": "\n".join(str(d) for d in deltas),
         "stock_cnt": "\n".join(["999"] * option_rows),
         "option_view_fl": "\n".join(["y"] * option_rows),
         "option_sell_fl": "\n".join(["y"] * option_rows),
@@ -281,7 +317,6 @@ def convert_ownerclan_to_godomall(
         detail_html = inject_alt_into_html(detail_html, _safe_str(row.get("상품코드", "")))
         # 상세설명 앞뒤 공통 콘텐츠 추가
         detail_html = _wrap_detail_html(detail_html)
-        option_block = build_option_block(row)
 
         # ── 가격 계산 + 브랜드 코드 결정 ─────────────────────────────────
         if strategy_id and ownerclan_price > 0:
@@ -294,6 +329,8 @@ def convert_ownerclan_to_godomall(
             goods_price = ownerclan_price
             discount_pct = 0.0
             selected_brand = "004"  # 기본 D등급(10%)
+
+        option_block = build_option_block(row, market_price=goods_price)
 
         rows.append(
             {
