@@ -9,6 +9,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 from seo_alt_injector import inject_alt_into_html
+from convert_base import convert_origin
 
 # price_engine 경로 (OC_ES_converter/scripts/ → 루트 2단계 위)
 _ROOT = Path(__file__).resolve().parent.parent.parent
@@ -344,7 +345,7 @@ def convert_ownerclan_to_godomall(
                 "pay_limit_fl": "n",
                 "model_no": "edit" + _safe_str(row.get("상품코드", "")),
                 "maker_name": _safe_str(row.get("제작/수입사", "")),
-                "origin_name": _safe_str(row.get("원산지", "")),
+                "origin_name": convert_origin(row.get("원산지", "")),
                 "search_word": ",".join(_parse_keyword_list(row.get("키워드", ""))),
                 "deliverySno": str(delivery_sno),
                 "goods_price": goods_price,

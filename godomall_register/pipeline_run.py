@@ -139,7 +139,7 @@ def fetch_export_products(db_path: Path) -> list[dict]:
         optional_keywords = [
             "product_names_json", "oc_options_json", "oc_images_json",
             "oc_content", "oc_search_keywords", "oc_shipping_fee",
-            "oc_shipping_type",
+            "oc_shipping_type", "oc_origin",
         ]
         optional_found = [c for c in optional_keywords if c in existing_cols]
 
@@ -219,6 +219,7 @@ def build_oc_dataframe(rows: list[dict], export_counts: dict[str, int] | None = 
             "키워드":        r.get("oc_search_keywords", ""),
             "배송비":        r.get("oc_shipping_fee") or 0,
             "배송유형":      r.get("oc_shipping_type", ""),
+            "원산지":        r.get("oc_origin", ""),
         })
     return pd.DataFrame(records)
 

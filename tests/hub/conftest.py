@@ -101,22 +101,22 @@ def _seed_products(conn: sqlite3.Connection) -> None:
     conn.executemany(
         """INSERT INTO products
            (상품코드, product_names_json, 카테고리명, product_status, oc_price,
-            text_status, image_status, oc_shipping_type,
+            text_status, image_status, oc_shipping_type, oc_status,
             ST4_마켓상품명, 누끼url, 연출url)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [
-            # W001: 텍스트완료 + 이미지완료(누끼+연출) + 가격 있음 → text_done, image_done, shippable / FREE
+            # W001: available + 가격있음 + 텍스트완료 + 누끼+연출 → text_done, image_done, shippable
             ("W001", '{"name":"테스트상품A"}', "가전/디지털>TV", "ACTIVE", 50000, "done", "done",
-             "FREE", "마켓상품명A", "https://cdn/W001_누끼.jpg", "https://cdn/W001_연출.jpg"),
-            # W002: 텍스트완료 + 누끼만(연출없음) + 가격 있음 → text_done, image_partial / FREE_ABOVE
+             "free", "available", "마켓상품명A", "https://cdn/W001_누끼.jpg", "https://cdn/W001_연출.jpg"),
+            # W002: available + 가격있음 + 텍스트완료 + 누끼만 → text_done, image_partial
             ("W002", '{"name":"테스트상품B"}', "가전/디지털>냉장고", "ACTIVE", 30000, "done", None,
-             "FREE_ABOVE", "마켓상품명B", "https://cdn/W002_누끼.jpg", None),
-            # W003: 텍스트없음 + 이미지없음 + 가격없음 → 아무것도 해당 안 됨 / PAID
+             "freeAbove", "available", "마켓상품명B", "https://cdn/W002_누끼.jpg", None),
+            # W003: available + 가격없음 → oc_price NULL이므로 total_synced 미포함
             ("W003", '{"name":"테스트상품C"}', "생활/주방>청소", "ACTIVE", None, None, None,
-             "PAID", None, None, None),
-            # W004: INACTIVE → 모든 ACTIVE 기준 집계에서 제외
+             "inAdvance", "available", None, None, None),
+            # W004: unavailable + 가격있음 → total_synced 포함, oc_available 미포함
             ("W004", '{"name":"비활성상품"}', "가전/디지털>TV", "INACTIVE", 10000, None, None,
-             "FREE", None, None, None),
+             "free", "unavailable", None, None, None),
         ],
     )
     conn.commit()

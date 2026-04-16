@@ -4,15 +4,19 @@ window.renderDashboard = async function(container) {
     <div class="card">
       <h3 style="font-size:16px;margin-bottom:16px">가공 현황</h3>
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-value" id="s-all">-</div><div class="stat-label">전체 DB</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-total">-</div><div class="stat-label">판매가능</div></div>
-        <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-soldout">-</div><div class="stat-label">품절</div></div>
-        <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-inactive">-</div><div class="stat-label">판매불가</div></div>
+        <div class="stat-card" style="border-left:3px solid var(--accent,#6366f1)"><div class="stat-value" id="s-synced">-</div><div class="stat-label">가공완료</div></div>
+        <div class="stat-card" style="border-left:3px solid #22c55e"><div class="stat-value" id="s-available">-</div><div class="stat-label">판매가능</div></div>
+        <div class="stat-card" style="opacity:0.7;border-left:3px solid #f59e0b"><div class="stat-value" id="s-soldout">-</div><div class="stat-label">품절</div></div>
+        <div class="stat-card" style="opacity:0.7;border-left:3px solid #ef4444"><div class="stat-value" id="s-discontinued">-</div><div class="stat-label">단종</div></div>
+        <div class="stat-card" style="opacity:0.5"><div class="stat-value" id="s-unavailable">-</div><div class="stat-label">판매불가</div></div>
+      </div>
+      <h3 style="font-size:14px;margin:20px 0 12px;color:var(--muted)">가공 상세 (판매가능 기준)</h3>
+      <div class="stat-grid">
         <div class="stat-card"><div class="stat-value" id="s-text">-</div><div class="stat-label">상품명 완료</div></div>
         <div class="stat-card"><div class="stat-value" id="s-img-both">-</div><div class="stat-label">누끼+연출</div></div>
         <div class="stat-card"><div class="stat-value" id="s-img-nk">-</div><div class="stat-label">누끼만</div></div>
         <div class="stat-card" style="opacity:0.6"><div class="stat-value" id="s-img-none">-</div><div class="stat-label">원본만</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-ship">-</div><div class="stat-label">출고 가능</div></div>
+        <div class="stat-card" style="border-left:3px solid #22c55e"><div class="stat-value" id="s-ship">-</div><div class="stat-label">출고 가능</div></div>
       </div>
     </div>
     <div class="card">
@@ -34,10 +38,11 @@ window.renderDashboard = async function(container) {
 
   // 가공 현황 + 배송비 통계 로드
   fetch('/api/dashboard').then(r => r.json()).then(d => {
-    document.getElementById('s-all').textContent = (d.total_all||0).toLocaleString();
-    document.getElementById('s-total').textContent = (d.total_active||0).toLocaleString();
-    document.getElementById('s-soldout').textContent = (d.soldout||0).toLocaleString();
-    document.getElementById('s-inactive').textContent = (d.inactive||0).toLocaleString();
+    document.getElementById('s-synced').textContent = (d.total_synced||0).toLocaleString();
+    document.getElementById('s-available').textContent = (d.oc_available||0).toLocaleString();
+    document.getElementById('s-soldout').textContent = (d.oc_soldout||0).toLocaleString();
+    document.getElementById('s-discontinued').textContent = (d.oc_discontinued||0).toLocaleString();
+    document.getElementById('s-unavailable').textContent = (d.oc_unavailable||0).toLocaleString();
     document.getElementById('s-text').textContent = (d.text_done||0).toLocaleString();
     document.getElementById('s-img-both').textContent = (d.image_done||0).toLocaleString();
     document.getElementById('s-img-nk').textContent = (d.image_partial||0).toLocaleString();
@@ -101,10 +106,15 @@ window.renderDashboard = async function(container) {
         es.close();
         // 통계 카드 갱신
         fetch('/api/dashboard').then(r => r.json()).then(d => {
-          document.getElementById('s-total').textContent = (d.total_active||0).toLocaleString();
+          document.getElementById('s-synced').textContent = (d.total_synced||0).toLocaleString();
+          document.getElementById('s-available').textContent = (d.oc_available||0).toLocaleString();
+          document.getElementById('s-soldout').textContent = (d.oc_soldout||0).toLocaleString();
+          document.getElementById('s-discontinued').textContent = (d.oc_discontinued||0).toLocaleString();
+          document.getElementById('s-unavailable').textContent = (d.oc_unavailable||0).toLocaleString();
           document.getElementById('s-text').textContent = (d.text_done||0).toLocaleString();
-          document.getElementById('s-img').textContent = (d.image_done||0).toLocaleString();
-          document.getElementById('s-img-p').textContent = (d.image_partial||0).toLocaleString();
+          document.getElementById('s-img-both').textContent = (d.image_done||0).toLocaleString();
+          document.getElementById('s-img-nk').textContent = (d.image_partial||0).toLocaleString();
+          document.getElementById('s-img-none').textContent = (d.image_none||0).toLocaleString();
           document.getElementById('s-ship').textContent = (d.shippable||0).toLocaleString();
           const shipBar = document.getElementById('shipping-bar');
           if (shipBar) {

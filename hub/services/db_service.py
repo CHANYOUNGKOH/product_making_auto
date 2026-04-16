@@ -212,46 +212,50 @@ def run_migrations(db_path: str | None = None) -> None:
 # ── 대시보드 ──────────────────────────────────────────────────────────────────
 
 def get_dashboard_stats() -> dict[str, Any]:
-    """대시보드 통계 — 가공 현황 + 배송비."""
+    """대시보드 통계 — 가공 현황 (OC 동기화된 상품 기준) + 배송비."""
     pc = _pcols()
     st4 = pc.get("ST4", "ST4_마켓상품명")
     nk = pc.get("누끼", "누끼url")
     yc = pc.get("연출", "연출url")
 
+    # 가공현황 = OC 동기화된 상품 (oc_price IS NOT NULL)
+    # 판매가능/품절/단종 = oc_status 기준
     with _conn() as con:
         cur = con.cursor()
         cur.execute(f"""
             SELECT
-                COUNT(*) as total_all,
-                COUNT(CASE WHEN product_status = 'ACTIVE' THEN 1 END) as total_active,
-                COUNT(CASE WHEN product_status = 'ACTIVE'
+                COUNT(CASE WHEN oc_price IS NOT NULL THEN 1 END) as total_synced,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'available' THEN 1 END) as oc_available,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'soldout' THEN 1 END) as oc_soldout,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'discontinued' THEN 1 END) as oc_discontinued,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'unavailable' THEN 1 END) as oc_unavailable,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'available'
                            AND [{st4}] IS NOT NULL AND [{st4}] != '' THEN 1 END) as text_done,
-                COUNT(CASE WHEN product_status = 'ACTIVE'
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'available'
                            AND [{nk}] IS NOT NULL AND [{nk}] != ''
                            AND [{yc}] IS NOT NULL AND [{yc}] != '' THEN 1 END) as image_done,
-                COUNT(CASE WHEN product_status = 'ACTIVE'
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'available'
                            AND [{nk}] IS NOT NULL AND [{nk}] != ''
                            AND ([{yc}] IS NULL OR [{yc}] = '') THEN 1 END) as image_partial,
-                COUNT(CASE WHEN product_status = 'ACTIVE'
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'available'
                            AND ([{nk}] IS NULL OR [{nk}] = '') THEN 1 END) as image_none,
-                COUNT(CASE WHEN product_status = 'ACTIVE'
+                COUNT(CASE WHEN oc_price IS NOT NULL AND oc_status = 'available'
                            AND [{st4}] IS NOT NULL AND [{st4}] != ''
-                           AND oc_price IS NOT NULL AND oc_price > 0 THEN 1 END) as shippable,
-                COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE' THEN 1 END) as shipping_free,
-                COUNT(CASE WHEN product_status = 'ACTIVE' AND oc_shipping_type = 'FREE_ABOVE' THEN 1 END) as shipping_conditional,
-                COUNT(CASE WHEN product_status = 'ACTIVE'
-                           AND oc_shipping_type IS NOT NULL AND oc_shipping_type != ''
-                           AND oc_shipping_type NOT IN ('FREE', 'FREE_ABOVE') THEN 1 END) as shipping_paid,
-                COUNT(CASE WHEN product_status = 'SOLDOUT' THEN 1 END) as soldout,
-                COUNT(CASE WHEN product_status = 'INACTIVE' THEN 1 END) as inactive
+                           AND oc_price > 0 THEN 1 END) as shippable,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND LOWER(oc_shipping_type) = 'free' THEN 1 END) as shipping_free,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND LOWER(oc_shipping_type) IN ('freeabove', 'free_above', 'uponarrival') THEN 1 END) as shipping_conditional,
+                COUNT(CASE WHEN oc_price IS NOT NULL AND LOWER(oc_shipping_type) = 'inadvance' THEN 1 END) as shipping_paid
             FROM products
         """)
         row = cur.fetchone()
         last_sync = con.execute("SELECT MAX(oc_synced_at) FROM products").fetchone()[0]
 
     return {
-        "total_all": row["total_all"],
-        "total_active": row["total_active"],
+        "total_synced": row["total_synced"],
+        "oc_available": row["oc_available"],
+        "oc_soldout": row["oc_soldout"],
+        "oc_discontinued": row["oc_discontinued"],
+        "oc_unavailable": row["oc_unavailable"],
         "text_done": row["text_done"],
         "image_done": row["image_done"],
         "image_partial": row["image_partial"],
@@ -260,8 +264,6 @@ def get_dashboard_stats() -> dict[str, Any]:
         "shipping_free": row["shipping_free"],
         "shipping_conditional": row["shipping_conditional"],
         "shipping_paid": row["shipping_paid"],
-        "soldout": row["soldout"],
-        "inactive": row["inactive"],
         "last_sync_at": last_sync or "",
     }
 

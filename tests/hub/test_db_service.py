@@ -12,16 +12,19 @@ def set_db_env(test_db_path):
 def test_get_dashboard_stats_returns_required_keys():
     from hub.services.db_service import get_dashboard_stats
     stats = get_dashboard_stats()
-    for key in ("total_active", "shippable", "text_done", "image_done",
+    for key in ("total_synced", "oc_available", "oc_soldout", "oc_discontinued",
+                "oc_unavailable", "shippable", "text_done", "image_done",
                 "image_partial", "shipping_free", "shipping_conditional",
                 "shipping_paid", "last_sync_at"):
         assert key in stats, f"Missing key: {key}"
 
 
-def test_total_active_counts_only_active(test_db_path):
+def test_total_synced_counts_oc_price_not_null(test_db_path):
     from hub.services.db_service import get_dashboard_stats
     stats = get_dashboard_stats()
-    assert stats["total_active"] == 3  # W001, W002, W003 (W004 is INACTIVE)
+    assert stats["total_synced"] == 3    # W001, W002, W004 (oc_price IS NOT NULL)
+    assert stats["oc_available"] == 2    # W001, W002 (available + oc_price)
+    assert stats["oc_unavailable"] == 1  # W004
 
 
 def test_shippable_requires_oc_price():
@@ -33,9 +36,10 @@ def test_shippable_requires_oc_price():
 def test_text_done_counts_st4_marketname():
     from hub.services.db_service import get_dashboard_stats
     stats = get_dashboard_stats()
-    assert stats["text_done"] == 2    # W001, W002 (ST4_마켓상품명 있음)
-    assert stats["image_done"] == 1   # W001 only (누끼+연출 모두)
-    assert stats["image_partial"] == 1  # W002 (누끼만)
+    assert stats["text_done"] == 2      # W001, W002 (ST4_마켓상품명 있음)
+    assert stats["image_done"] == 1    # W001 only (누끼+연출 모두)
+    assert stats["image_partial"] == 1 # W002 (누끼만)
+    assert stats["image_none"] == 0    # available 중 이미지 없는 건 없음
 
 
 def test_get_products_returns_active_only():
