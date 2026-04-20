@@ -11,7 +11,7 @@
 |------|--------|---------|---|------|
 | [11번가](./11st.md) | 17.5% | pre_discount | 50% 고정 | [11st.md](./11st.md) |
 | [스마트스토어](./smartstore.md) | 6.5% | post_discount | 50% 고정 | [smartstore.md](./smartstore.md) |
-| [고도몰](./godomall.md) | 4.0% | post_discount | 가격대별 4단계 | [godomall.md](./godomall.md) |
+| 고도몰 | 4.0% | post_discount | **최저가=35% 단일**, 일반/광고=4단계 | [markets/godomall/](../markets/godomall/) |
 | [ESM (옥션/지마켓)](./esm.md) | 16.5% | pre_discount | A=2% / B=61% | [esm.md](./esm.md) |
 
 ---

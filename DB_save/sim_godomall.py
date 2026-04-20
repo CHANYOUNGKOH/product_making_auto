@@ -227,7 +227,7 @@ def _add_policy_sheet(wb, strategies: list[tuple[str, dict]]) -> None:
         ("수수료기준", BASE_POLICY["commission_base"]),
         ("쿠폰 E",    f"{BASE_POLICY['coupon_amount']}원"),
         ("스마일캐시", "0%"),
-        ("J 구간",    "원가≤5000:35%, ≤30000:28%, ≤100000:18%, 초과:10%"),
+        ("J 구간",    "lowest_price: 전구간 35% / normal_sale,cpc_ad: 원가≤5000 35%, ≤30000 28%, ≤100000 18%, 초과 10%"),
         ("", ""),
     ]
     for sid, strat in strategies:
@@ -269,7 +269,7 @@ def main() -> None:
         ("cpc_ad",       strat_ad),
     ])
 
-    out = "DB_save/고도몰_3전략_시뮬_v1.xlsx"
+    out = "DB_save/고도몰_3전략_시뮬_v3.xlsx"
     wb.save(out)
     print(f"Saved: {out}")
     print(f"Products: {len(PRODUCTS)}개")
@@ -301,13 +301,9 @@ def main() -> None:
 
 def _print_boundary_table(strategies: dict) -> None:
     """도매가(원가) 구간 경계점에서 각 전략별 등록가(I) 범위 출력."""
-    # J 구간 경계: 원가가 바뀌는 지점 (직전/직후)
-    # discount_bands: [5000→35%], [30000→28%], [100000→18%], [초과→10%]
+    # lowest_price는 전 구간 35% 단일 J, 일반/광고전략만 4단계 J 유지
     zones = [
-        ("35%", 50,       5_000,   "≤5,000"),
-        ("28%", 5_001,   30_000,   "5,001~30,000"),
-        ("18%", 30_001, 100_000,   "30,001~100,000"),
-        ("10%", 100_001, 500_000,  ">100,000"),
+        ("35%", 50, 500_000, "전구간"),
     ]
 
     strat_low  = strategies["lowest_price"]
