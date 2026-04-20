@@ -24,14 +24,14 @@ POLICY_A = {                        # 유배, J=2%
     "commission_rate": 16.5,
     "commission_base": "pre_discount",
     "discount_rate": 2.0,
-    "coupon_amount": 100,
+    "coupon_amount": 150,
     "reward_rate": 0.5,
 }
 POLICY_B = {                        # 무배, J=61%
     "commission_rate": 16.5,
     "commission_base": "pre_discount",
     "discount_rate": 61.0,
-    "coupon_amount": 100,
+    "coupon_amount": 150,
     "reward_rate": 0.5,
 }
 SHIPPING_A = 0       # 유배: 구매자 별도 부담

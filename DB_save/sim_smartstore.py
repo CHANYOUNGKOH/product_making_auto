@@ -22,7 +22,7 @@ POLICY = {
     "commission_rate": 6.5,
     "commission_base": "post_discount",
     "discount_rate": 50,       # sales_channels.json 의 default_discount_rate
-    "coupon_amount": 100,
+    "coupon_amount": 150,
     "reward_rate": 15,
 }
 

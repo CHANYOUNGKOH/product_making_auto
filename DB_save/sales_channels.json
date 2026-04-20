@@ -20,7 +20,7 @@
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
-      "coupon_amount": 100,
+      "coupon_amount": 150,
       "reward_rate": 0.5,
       "status": "registering",
       "note": "A타입 J=2%(유배), B타입 J=61%(무배 3000원흡수). 쿠폰100원, 스마일캐시0.5%"
@@ -29,7 +29,7 @@
       "commission_rate": 16.5,
       "commission_base": "pre_discount",
       "default_discount_rate": 2,
-      "coupon_amount": 100,
+      "coupon_amount": 150,
       "reward_rate": 0.5,
       "status": "registering",
       "note": "A타입 J=2%(유배), B타입 J=61%(무배 3000원흡수). 쿠폰100원, 스마일캐시0.5%"
@@ -38,7 +38,7 @@
       "commission_rate": 6.5,
       "commission_base": "post_discount",
       "default_discount_rate": 50,
-      "coupon_amount": 100,
+      "coupon_amount": 150,
       "reward_rate": 15,
       "status": "registering",
       "note": "할인율 70% 미만 유지 필요. 스마일캐시 15% 판매가에 선반영 (고객 적용 가정)"
@@ -105,8 +105,12 @@
       "default_discount_rate": null,
       "coupon_amount": 50,
       "reward_rate": 0,
+      "delivery_sno": {
+        "paid": "1",
+        "free": "4"
+      },
       "status": "pending",
-      "note": "자체쿠폰정책: 가격대별 4단계(원가≤5000:35%, ≤30000:28%, ≤100000:18%, 초과:10%), 위탁주문가 이상만 쿠폰 발행"
+      "note": "할인율 개념 없음. 실결제금액 기준 수수료. 자체쿠폰정책: 가격대별 4단계(원가≤5000:35%, ≤30000:28%, ≤100000:18%, 초과:10%), 위탁주문가 이상만 쿠폰 발행. 배송비코드: 1=3000원, 4=무료"
     }
   },
   "owners": {
@@ -811,8 +815,8 @@
       "business_name": "굿투굿",
       "store_num": "1",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "paid",
+      "shipping_fee": 3000,
       "discount_rate": null
     },
     "고도몰A1-2": {
@@ -822,8 +826,8 @@
       "business_name": "굿투굿",
       "store_num": "2",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "paid",
+      "shipping_fee": 3000,
       "discount_rate": null
     },
     "고도몰A4-1": {
@@ -833,8 +837,8 @@
       "business_name": "러블리몰",
       "store_num": "1",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "paid",
+      "shipping_fee": 3000,
       "discount_rate": null
     },
     "고도몰A1-3": {
@@ -844,8 +848,8 @@
       "business_name": "굿투굿",
       "store_num": "3",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "paid",
+      "shipping_fee": 3000,
       "discount_rate": null
     },
     "고도몰B2-1": {
@@ -855,8 +859,8 @@
       "business_name": "샤이닝몰",
       "store_num": "1",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "free",
+      "shipping_fee": 0,
       "discount_rate": null
     },
     "고도몰B1-1": {
@@ -866,8 +870,8 @@
       "business_name": "마이짐",
       "store_num": "1",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "free",
+      "shipping_fee": 0,
       "discount_rate": null
     },
     "고도몰B1-2": {
@@ -877,8 +881,8 @@
       "business_name": "마이짐",
       "store_num": "2",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "free",
+      "shipping_fee": 0,
       "discount_rate": null
     },
     "고도몰B1-3": {
@@ -888,8 +892,8 @@
       "business_name": "마이짐",
       "store_num": "3",
       "status": "active",
-      "shipping_strategy": null,
-      "shipping_fee": null,
+      "shipping_strategy": "free",
+      "shipping_fee": 0,
       "discount_rate": null
     }
   },
