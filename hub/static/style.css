@@ -157,6 +157,7 @@ body {
 .pill-done     { background: rgba(52,212,116,0.2); color: var(--green); }
 .pill-progress { background: rgba(252,204,21,0.2);  color: var(--yellow); }
 .pill-todo     { background: rgba(139,143,168,0.15); color: var(--muted); }
+.pill-danger   { background: rgba(248,113,113,0.16); color: var(--red); }
 
 table { width: 100%; border-collapse: collapse; }
 thead th {

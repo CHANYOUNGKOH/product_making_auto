@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS products (
     market_id TEXT,
     상품코드 TEXT NOT NULL,
     product_names_json TEXT,
+    ST2_JSON TEXT,
     카테고리명 TEXT,
     product_status TEXT DEFAULT 'ACTIVE',
     oc_price INTEGER,
@@ -30,7 +31,13 @@ CREATE TABLE IF NOT EXISTS products (
     registered_stores TEXT DEFAULT '[]',
     ST4_마켓상품명 TEXT,
     누끼url TEXT,
-    연출url TEXT
+    연출url TEXT,
+    image_slots TEXT,
+    genai_status TEXT,
+    genai_error TEXT,
+    genai_updated_at TEXT,
+    genai_locked_at TEXT,
+    genai_issue_memo TEXT
 );
 """
 
@@ -102,21 +109,30 @@ def _seed_products(conn: sqlite3.Connection) -> None:
         """INSERT INTO products
            (상품코드, product_names_json, 카테고리명, product_status, oc_price,
             text_status, image_status, oc_shipping_type, oc_status,
-            ST4_마켓상품명, 누끼url, 연출url)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ST4_마켓상품명, 누끼url, 연출url, ST2_JSON, image_slots,
+            genai_status, genai_error, genai_locked_at, genai_issue_memo)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [
             # W001: available + 가격있음 + 텍스트완료 + 누끼+연출 → text_done, image_done, shippable
             ("W001", '{"name":"테스트상품A"}', "가전/디지털>TV", "ACTIVE", 50000, "done", "done",
-             "free", "available", "마켓상품명A", "https://cdn/W001_누끼.jpg", "https://cdn/W001_연출.jpg"),
+             "free", "available", "마켓상품명A", "https://cdn/W001_누끼.jpg", "https://cdn/W001_연출.jpg",
+             '{"meta":{"기본상품명":"테스트상품A"}}',
+             '{"generated_1x1":[{"url":"https://cdn/W001_gen.jpg","generated_at":"2026-04-20T10:00:00"}],"codex":{"url":"https://cdn/W001_gen.jpg","generated_at":"2026-04-20T10:00:00"},"nukki":{"url":"https://cdn/W001_누끼.jpg"},"original":[{"url":"https://cdn/W001_oc1.jpg"},{"url":"https://cdn/W001_oc2.jpg"}],"rolled_index":0}',
+             "done", None, None, None),
             # W002: available + 가격있음 + 텍스트완료 + 누끼만 → text_done, image_partial
             ("W002", '{"name":"테스트상품B"}', "가전/디지털>냉장고", "ACTIVE", 30000, "done", None,
-             "freeAbove", "available", "마켓상품명B", "https://cdn/W002_누끼.jpg", None),
-            # W003: available + 가격없음 → oc_price NULL이므로 total_synced 미포함
+             "freeAbove", "available", "마켓상품명B", "https://cdn/W002_누끼.jpg", None,
+             '{"meta":{"기본상품명":"테스트상품B"}}',
+             None, "failed", "timeout", None, None),
+            # W003: available + 가격없음 → oc_price NULL이므로 total_synced 미포함, image-genai stale running 대상
             ("W003", '{"name":"테스트상품C"}', "생활/주방>청소", "ACTIVE", None, None, None,
-             "inAdvance", "available", None, None, None),
+             "inAdvance", "available", "마켓상품명C", "https://cdn/W003_누끼.jpg", None,
+             '{"meta":{"기본상품명":"테스트상품C"}}',
+             None, "running", None, "2000-01-01T00:00:00", None),
             # W004: unavailable + 가격있음 → total_synced 포함, oc_available 미포함
             ("W004", '{"name":"비활성상품"}', "가전/디지털>TV", "INACTIVE", 10000, None, None,
-             "free", "unavailable", None, None, None),
+             "free", "unavailable", None, None, None,
+             None, None, None, None, None, None),
         ],
     )
     conn.commit()

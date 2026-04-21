@@ -141,3 +141,13 @@ godomall_register/ownerclan_config.json
 
 # Git worktrees (subagent-driven-development)
 .worktrees/
+
+# Image GenAI runtime artifacts
+IMG_pipeline/web_sessions/
+IMG_pipeline/codex_output/
+IMG_pipeline/poc_input/
+IMG_pipeline/poc_output/
+IMG_pipeline/codex_usage.json
+IMG_pipeline/__pycache__/
+IMG_pipeline/lanes/__pycache__/
+IMG_pipeline/lanes/web/__pycache__/
