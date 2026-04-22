@@ -15,6 +15,19 @@ parent_dir = current_dir.parent
 if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
+# SEO alt 텍스트 자동 주입 모듈 (DB ST2_JSON 기반)
+try:
+    _alt_injector_dir = Path(__file__).resolve().parent.parent.parent / "OC_ES_converter" / "scripts"
+    if str(_alt_injector_dir) not in sys.path:
+        sys.path.insert(0, str(_alt_injector_dir))
+    from seo_alt_injector import init_alt_cache, inject_alt_into_html, clear_alt_cache
+    from convert_base import convert_origin
+    HAS_ALT_INJECTOR = True
+except ImportError:
+    HAS_ALT_INJECTOR = False
+    def convert_origin(s):
+        return str(s) if s else "국산"
+
 from solutions.base_solution import BaseSolution
 from rules.option_price_correction import OptionPriceCorrector, log_option_correction
 
@@ -64,8 +77,9 @@ class EsellersSolution(BaseSolution):
             "search_keywords": "검색어(태그)"
         }
     
-    def apply_mapping(self, result_df: pd.DataFrame, processed_df: pd.DataFrame, 
-                     column_mapping: Dict[str, str], config: Dict) -> pd.DataFrame:
+    def apply_mapping(self, result_df: pd.DataFrame, processed_df: pd.DataFrame,
+                     column_mapping: Dict[str, str], config: Dict,
+                     original_solution_df: pd.DataFrame = None) -> pd.DataFrame:
         """매핑 규칙 적용 (이셀러스는 상품코드 기준) - 성능 최적화 버전"""
         # 이셀러스는 상품코드 기준 매핑 (판매자 관리코드와 매칭)
         if "상품코드" in processed_df.columns and "판매자 관리코드" in result_df.columns:
@@ -121,9 +135,8 @@ class EsellersSolution(BaseSolution):
             mapper_config = MapperConfig(parent_dir)
             detail_bottom = mapper_config.get_template("bottom", config["detail_bottom_template"])
         
-        # 1. 기본 매핑 적용
-        column_mapping = self.get_default_mapping()
-        result_df = self.apply_mapping(result_df, processed_df, column_mapping, config)
+        # Note: apply_mapping은 main.py에서 이미 호출됨 (중복 호출 제거)
+        # 11번가 로직 등 옵션 처리는 apply_mapping 내에서 수행됨
         
         # 2. 폴더명 = 엑셀 파일명 (40byte 이내)
         # 스마트스토어(스스)인 경우: 날짜_마켓코드_배배송비값 형식
@@ -241,6 +254,42 @@ class EsellersSolution(BaseSolution):
                             # 40byte 이내로 제한
                             folder_name = self._ensure_folder_name_byte_limit(folder_name)
                             result_df.at[idx, "폴더명"] = folder_name
+                elif detected_market == "11번가":
+                    # 11번가: 다른 마켓과 동일하게 날짜_마켓코드 형식 (일괄등록 용이)
+                    base_folder_name = self._extract_date_market_code(filename, compress_for_category=has_basic_category)
+
+                    # 각 행별로 처리 (할인값 + 배송비)
+                    for idx, row in result_df.iterrows():
+                        manager_code = row.get("판매자 관리코드", "")
+                        folder_name_parts = [base_folder_name]
+
+                        # 할인값/배송비 처리 (있으면 추가)
+                        if manager_code in processed_dict:
+                            discount_value = None
+                            if "판매자 부담 할인" in processed_df.columns:
+                                discount_raw = processed_dict[manager_code].get("판매자 부담 할인", "")
+                                if pd.notna(discount_raw) and str(discount_raw).strip():
+                                    discount_value = self._convert_discount_to_folder_format(str(discount_raw).strip())
+                            if discount_value:
+                                folder_name_parts.append(f"할{discount_value}")
+
+                            shipping_fee_str = None
+                            if "배송비" in processed_df.columns:
+                                shipping_fee = processed_dict[manager_code].get("배송비", "")
+                                if pd.notna(shipping_fee) and str(shipping_fee).strip():
+                                    shipping_fee_str = str(shipping_fee).strip().replace(",", "")
+                            if shipping_fee_str:
+                                folder_name_parts.append(f"배{shipping_fee_str}")
+
+                        folder_name = "_".join(folder_name_parts)
+
+                        # 솔루션엑셀에 '_기본카테고리'가 있으면 접두사 추가
+                        if has_basic_category:
+                            folder_name = f"이셀카테_{folder_name}"
+
+                        # 40byte 이내로 제한
+                        folder_name = self._ensure_folder_name_byte_limit(folder_name)
+                        result_df.at[idx, "폴더명"] = folder_name
                 else:
                     # 기타 마켓: 스마트스토어와 동일하게 할인값 + 배송비 컬럼 사용
                     # 날짜_마켓코드 부분만 추출
@@ -415,7 +464,12 @@ class EsellersSolution(BaseSolution):
             # 필독 문구 스타일 설정 가져오기
             notice_bg_color = config.get("detail_top_notice_bg_color", "yellow")
             notice_padding = config.get("detail_top_notice_padding", "2px 5px")
-            
+
+            # SEO alt 캐시 초기화 (original_detail 내 img 태그용)
+            if HAS_ALT_INJECTOR and "판매자 관리코드" in result_df.columns:
+                product_codes = result_df["판매자 관리코드"].dropna().astype(str).tolist()
+                init_alt_cache(product_codes)
+
             for idx, row in result_df.iterrows():
                 # 등록 솔루션 엑셀의 원본 상세설명 가져오기
                 original_detail = row.get("상세설명*", "")
@@ -456,10 +510,11 @@ class EsellersSolution(BaseSolution):
                 # 상단 HTML 구성
                 top_html_parts = []
                 
-                # 대표 이미지
+                # 대표 이미지 (alt = 원본 상품명)
                 if main_image_url:
+                    alt_name = (original_product_name or "상품 대표 이미지").replace('"', '&quot;')
                     top_html_parts.append(
-                        f'<img src="{main_image_url}" style="width: {image_width}px; height: {image_height}px; object-fit: contain;" /><br>'
+                        f'<img src="{main_image_url}" alt="{alt_name}" style="width: {image_width}px; height: {image_height}px; object-fit: contain;" /><br>'
                     )
                 
                 # 상품명 표시 텍스트
@@ -477,13 +532,18 @@ class EsellersSolution(BaseSolution):
                 
                 top_html = "<center>" + "".join(top_html_parts) + "</center>" if top_html_parts else ""
                 
-                # 하단 이미지
-                bottom_html = f'<center><img src="{selected_bottom_image_url}" /></center>'
+                # 하단 교환/반품 이미지
+                bottom_html = f'<center><img src="{selected_bottom_image_url}" alt="교환 및 반품 안내" /></center>'
                 
                 # 기존 하단 문구 추가
                 if detail_bottom:
                     bottom_html = f"{bottom_html}<br><center>{detail_bottom}</center>"
                 
+                # original_detail 내 img 태그에 SEO alt 주입
+                if HAS_ALT_INJECTOR and original_detail:
+                    mgr_code = str(row.get("판매자 관리코드", "")) if pd.notna(row.get("판매자 관리코드", "")) else ""
+                    original_detail = inject_alt_into_html(original_detail, mgr_code)
+
                 # 전체 조합: 상단 + 원본 상세설명 + 하단
                 if top_html:
                     if original_detail:
@@ -495,32 +555,113 @@ class EsellersSolution(BaseSolution):
                         detail_html = f"{original_detail}<br>{bottom_html}"
                     else:
                         detail_html = bottom_html
-                
+
                 result_df.at[idx, "상세설명*"] = detail_html
-        
+
+            # SEO alt 캐시 정리
+            if HAS_ALT_INJECTOR:
+                clear_alt_cache()
+
         # 7. 선택사항 상세정보 = 옵션가격조정 로직
+        # 11번가: 판매가 50% 인하 + 인하분을 옵션에 추가 + 단위내림
+        # 기타 마켓: 기존 옵션가격 보정 로직
         option_price_rule = config.get("option_price_rule", "smartstore")
-        if option_price_rule != "none" and "선택사항 상세정보" in result_df.columns and "마켓판매가격" in processed_df.columns:
-            for idx, row in result_df.iterrows():
-                manager_code = row.get("판매자 관리코드", "")
-                option_text = row.get("선택사항 상세정보", "")
-                
-                if pd.notna(option_text) and str(option_text).strip():
-                    # 가공된 엑셀에서 마켓판매가격 가져오기
-                    market_price = 0
-                    if manager_code in processed_dict:
-                        price_value = processed_dict[manager_code].get("마켓판매가격", 0)
-                        if pd.notna(price_value):
+
+        if option_price_rule != "none" and "선택사항 상세정보" in result_df.columns:
+            if "마켓판매가격" in processed_df.columns:
+                if detected_market == "11번가":
+                    # 11번가 전용 로직:
+                    # 1) 등록솔루션 판매가 기준으로 옵션가 max_delta 보정
+                    # 2) 마켓판매가격 기준으로 판매가 50% 인하 + price_diff 추가
+                    for idx, row in result_df.iterrows():
+                        manager_code = row.get("판매자 관리코드", "")
+                        option_text = row.get("선택사항 상세정보", "")
+
+                        # 등록솔루션 판매가 (도매처 가격 기준)
+                        solution_price = 0
+                        solution_price_val = row.get("판매가*", 0)
+                        if pd.notna(solution_price_val):
                             try:
-                                market_price = float(price_value)
+                                solution_price = float(str(solution_price_val).replace(",", ""))
                             except (ValueError, TypeError):
-                                market_price = 0
-                    
-                    # 옵션 보정 수행 (이셀러스 형식)
-                    if market_price > 0:
-                        corrected_option = self._correct_esellers_option_price(option_text, market_price)
-                        if corrected_option != option_text:
-                            result_df.at[idx, "선택사항 상세정보"] = corrected_option
+                                solution_price = 0
+
+                        # 가공된 엑셀에서 마켓판매가격 가져오기
+                        market_price = 0
+                        if manager_code in processed_dict:
+                            price_value = processed_dict[manager_code].get("마켓판매가격", 0)
+                            if pd.notna(price_value):
+                                try:
+                                    market_price = float(price_value)
+                                except (ValueError, TypeError):
+                                    market_price = 0
+
+                        if market_price > 0:
+                            # 1. 판매가 50% 인하 (10원 단위 올림) + 대량단가 하한 가드
+                            #   대량단가 옵션은 옵션가 입력 불가 → 판매가 자체가 손익 0 보장해야 함
+                            #   공식: 판매가 × 0.325 ≥ 원가 + 120  (coef=(1-J)-fee=(1-0.5)-0.175=0.325, E=120)
+                            import math as _m
+                            cost_a = 0.0
+                            cost_val = row.get("원가", 0)
+                            if pd.notna(cost_val):
+                                try:
+                                    cost_a = float(str(cost_val).replace(",", ""))
+                                except (ValueError, TypeError):
+                                    cost_a = 0.0
+                            new_price_50 = ((int(market_price * 0.5) + 9) // 10) * 10
+                            if cost_a > 0:
+                                min_price_bulk_raw = (cost_a + 120) / 0.325
+                                min_price_bulk = int(_m.ceil(min_price_bulk_raw / 10)) * 10
+                                new_price = max(new_price_50, min_price_bulk)
+                                # 대량단가 하한에 걸려 인하 축소된 경우 로깅
+                                if new_price > new_price_50:
+                                    print(f"[11st bulk-guard] mgr={manager_code} 원가={cost_a:.0f} "
+                                          f"50%인하={new_price_50} → 가드={new_price} (+{new_price - new_price_50})")
+                            else:
+                                # 원가 미확인 시 기존 동작 유지 (50% 인하만)
+                                new_price = new_price_50
+                            price_diff = int(market_price) - new_price
+
+                            # 판매가 업데이트
+                            result_df.at[idx, "판매가*"] = new_price
+
+                            # 2. 옵션 처리 (대량단가 제외)
+                            if pd.notna(option_text) and str(option_text).strip():
+                                # 2-1. 등록솔루션 판매가 기준으로 옵션가 2배 보정 (max_delta 제한)
+                                if solution_price > 0:
+                                    corrected_option = self._correct_11st_option_price(
+                                        str(option_text), solution_price
+                                    )
+                                else:
+                                    corrected_option = str(option_text)
+
+                                # 2-2. 그 다음 price_diff 추가 + 단위 내림
+                                shifted_option = self._apply_11st_option_shift(
+                                    corrected_option, price_diff, new_price
+                                )
+                                result_df.at[idx, "선택사항 상세정보"] = shifted_option
+                else:
+                    # 기존 로직: 스마트스토어/옥션/지마켓 등
+                    for idx, row in result_df.iterrows():
+                        manager_code = row.get("판매자 관리코드", "")
+                        option_text = row.get("선택사항 상세정보", "")
+
+                        if pd.notna(option_text) and str(option_text).strip():
+                            # 가공된 엑셀에서 마켓판매가격 가져오기
+                            market_price = 0
+                            if manager_code in processed_dict:
+                                price_value = processed_dict[manager_code].get("마켓판매가격", 0)
+                                if pd.notna(price_value):
+                                    try:
+                                        market_price = float(price_value)
+                                    except (ValueError, TypeError):
+                                        market_price = 0
+
+                            # 옵션 보정 수행 (이셀러스 형식)
+                            if market_price > 0:
+                                corrected_option = self._correct_esellers_option_price(option_text, market_price)
+                                if corrected_option != option_text:
+                                    result_df.at[idx, "선택사항 상세정보"] = corrected_option
         
         # 8. 브랜드 = 공란
         if "브랜드" in result_df.columns:
@@ -533,9 +674,22 @@ class EsellersSolution(BaseSolution):
                 if pd.notna(manager_code):
                     result_df.at[idx, "모델명"] = f"edit{str(manager_code).strip()}"
         
-        # 10. 제조사 = "onerclan OEM"
+        # 10. 원산지 = 가공엑셀의 원산지 (오너클랜 API origin → convert_origin 변환)
+        if "원산지*" in result_df.columns and "원산지" in processed_df.columns:
+            for idx, row in result_df.iterrows():
+                manager_code = row.get("판매자 관리코드", "")
+                if manager_code in processed_dict:
+                    raw_origin = processed_dict[manager_code].get("원산지", "")
+                    if pd.notna(raw_origin) and str(raw_origin).strip():
+                        result_df.at[idx, "원산지*"] = convert_origin(str(raw_origin).strip())
+            # 그래도 빈 값이면 폴백
+            mask = result_df["원산지*"].isna() | (result_df["원산지*"].astype(str).str.strip() == "")
+            result_df.loc[mask, "원산지*"] = "국산"
+
+        # 제조사 — 빈 값이면 "상세설명참조"
         if "제조사" in result_df.columns:
-            result_df["제조사"] = "onerclan OEM"
+            mask = result_df["제조사"].isna() | (result_df["제조사"].astype(str).str.strip() == "")
+            result_df.loc[mask, "제조사"] = "상세설명참조"
         
         # 11. 홍보문구 = "모든카드 무이자 3개월!"
         if "홍보문구" in result_df.columns:
@@ -861,3 +1015,124 @@ class EsellersSolution(BaseSolution):
         
         return '\n'.join(corrected_lines) if corrected_lines else option_text
 
+    def _correct_11st_option_price(self, option_text: str, solution_price: float) -> str:
+        """11번가 전용: 옵션 가격 보정 (2배 + max_delta 제한)
+
+        원래 옵션가의 2배로 올리되, max_delta를 초과하면 max_delta로 제한
+
+        Args:
+            option_text: 옵션 상세정보 (줄바꿈 구분)
+            solution_price: 등록솔루션 판매가 (max_delta 계산용)
+
+        Returns:
+            보정된 옵션 텍스트
+        """
+        from rules.option_price_correction import OptionPriceCorrector
+
+        lines = option_text.strip().split('\n')
+        result_lines = []
+
+        # max_delta 및 단위 계산 (등록솔루션 판매가 기준)
+        max_delta = OptionPriceCorrector.calculate_max_delta(solution_price)
+        rounding_unit = OptionPriceCorrector.get_rounding_unit(solution_price)
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # 대량단가 옵션은 그대로 유지
+            if '■대량단가' in line:
+                result_lines.append(line)
+                continue
+
+            # 이셀러스 형식: 옵션값**추가금*수량*판매여부*이미지URL*
+            if '**' in line:
+                parts = line.split('**', 1)
+                option_values = parts[0]
+                rest = parts[1] if len(parts) > 1 else ''
+
+                rest_parts = rest.split('*')
+                if len(rest_parts) >= 1:
+                    try:
+                        original_price = int(rest_parts[0]) if rest_parts[0] else 0
+                    except ValueError:
+                        original_price = 0
+
+                    # 2배로 올리되 max_delta 초과 시 max_delta로 제한
+                    if original_price > 0:
+                        new_price = original_price * 2
+                        new_price = min(new_price, max_delta)
+                        new_price = (int(new_price) // rounding_unit) * rounding_unit
+                    else:
+                        new_price = 0
+
+                    rest_parts[0] = str(int(new_price))
+                    new_line = option_values + '**' + '*'.join(rest_parts)
+                    result_lines.append(new_line)
+                else:
+                    result_lines.append(line)
+            else:
+                result_lines.append(line)
+
+        return '\n'.join(result_lines) if result_lines else option_text
+
+    def _apply_11st_option_shift(self, option_text: str, price_diff: int, new_price: float) -> str:
+        """11번가 전용: 옵션 가격 시프트
+
+        판매가 인하분(price_diff)을 기존 옵션 추가금에 더하고 단위 내림 적용
+        대량단가 옵션(■대량단가)은 제외
+
+        Args:
+            option_text: 옵션 상세정보 (줄바꿈 구분)
+            price_diff: 판매가 인하분 (원래가격 - 새가격)
+            new_price: 새 판매가 (단위 내림 규칙 적용용)
+
+        Returns:
+            시프트된 옵션 텍스트
+        """
+        from rules.option_price_correction import OptionPriceCorrector
+
+        lines = option_text.strip().split('\n')
+        result_lines = []
+
+        # 단위 내림 규칙 (새 판매가 기준)
+        rounding_unit = OptionPriceCorrector.get_rounding_unit(new_price)
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # 대량단가 옵션은 그대로 유지 (0원)
+            if '■대량단가' in line:
+                result_lines.append(line)
+                continue
+
+            # 이셀러스 형식: 옵션값**추가금*수량*판매여부*이미지URL*
+            if '**' in line:
+                parts = line.split('**', 1)
+                option_values = parts[0]
+                rest = parts[1] if len(parts) > 1 else ''
+
+                rest_parts = rest.split('*')
+                if len(rest_parts) >= 1:
+                    try:
+                        current_add_price = int(rest_parts[0]) if rest_parts[0] else 0
+                    except ValueError:
+                        current_add_price = 0
+
+                    # 가격 시프트 + 단위 내림
+                    new_add_price = current_add_price + price_diff
+                    new_add_price = (new_add_price // rounding_unit) * rounding_unit
+                    new_add_price = max(0, new_add_price)  # 음수 방지
+
+                    rest_parts[0] = str(new_add_price)
+                    new_line = option_values + '**' + '*'.join(rest_parts)
+                    result_lines.append(new_line)
+                else:
+                    result_lines.append(line)
+            else:
+                result_lines.append(line)
+
+        return '\n'.join(result_lines) if result_lines else option_text

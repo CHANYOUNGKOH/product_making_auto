@@ -26,6 +26,7 @@ __pycache__/
 # -------------------------------------------
 # API 키 (민감정보) - 절대 커밋 금지!
 # -------------------------------------------
+.env
 .openai_api_key*
 .gemini_api_key*
 *.api_key*
@@ -132,3 +133,11 @@ my_images_repo/
 # 스스 작업 폴더 내 로그
 스스_*/script_log.txt
 스스_*/*_log.txt
+
+# -------------------------------------------
+# 오너클랜 인증 정보 (비밀번호 포함)
+# -------------------------------------------
+godomall_register/ownerclan_config.json
+
+# Git worktrees (subagent-driven-development)
+.worktrees/

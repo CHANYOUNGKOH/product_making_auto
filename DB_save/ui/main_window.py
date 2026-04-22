@@ -26,9 +26,16 @@ from tkinter.scrolledtext import ScrolledText
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.db_handler import DBHandler
+from ui.export_helpers import (
+    build_sheet_used_combinations_cache,
+    build_store_used_product_codes_cache,
+    log_category_season_result,
+    normalize_store_categories,
+    update_store_season_stats,
+)
 from config import (
-    AccountLoader, DEFAULT_DB_PATH, DEFAULT_EXCEL_ACCOUNTS_PATH, 
-    OWNER_NAMES, BUSINESS_NAMES, FIXED_DB_PATH,
+    AccountLoader, DEFAULT_DB_PATH, DEFAULT_EXCEL_ACCOUNTS_PATH,
+    OWNER_NAMES, BUSINESS_NAMES, FIXED_DB_PATH, SHEET_DISPLAY_NAMES, HIDDEN_SHEETS, WHOLESALE_SHEETS,
     load_db_path_from_config, save_db_path_to_config
 )
 
@@ -1961,14 +1968,34 @@ class MainWindow(tk.Tk):
         root_var = tk.BooleanVar(value=False)
         self.tree_checkboxes[root_id] = root_var
         self.market_tree_items[root_id] = {"type": "root", "accounts": []}
-        
+
+        # 소매처/도매처 그룹 노드 생성
+        retail_id = self.market_tree.insert(root_id, "end", text="☐ [소매처]", open=False)
+        retail_var = tk.BooleanVar(value=False)
+        self.tree_checkboxes[retail_id] = retail_var
+        self.market_tree_items[retail_id] = {"type": "group", "group_name": "소매처", "accounts": []}
+
+        wholesale_id = self.market_tree.insert(root_id, "end", text="☐ [도매처]", open=False)
+        wholesale_var = tk.BooleanVar(value=False)
+        self.tree_checkboxes[wholesale_id] = wholesale_var
+        self.market_tree_items[wholesale_id] = {"type": "group", "group_name": "도매처", "accounts": []}
+
         # 시트별로 트리 구성
         for sheet_name, owners in sorted(tree_structure.items()):
+            # 숨김 시트는 건너뛰기
+            if sheet_name in HIDDEN_SHEETS:
+                continue
+
+            # 도매처/소매처 그룹 결정
+            parent_id = wholesale_id if sheet_name in WHOLESALE_SHEETS else retail_id
+
             # 시트 노드 (마켓 타입) - 초기 상태: 닫힘, 해제
-            sheet_id = self.market_tree.insert(root_id, "end", text=f"☐ {sheet_name}", open=False)
+            # 시트명을 표시명으로 변환 (매핑이 없으면 원래 시트명 사용)
+            display_name = SHEET_DISPLAY_NAMES.get(sheet_name, sheet_name)
+            sheet_id = self.market_tree.insert(parent_id, "end", text=f"☐ {display_name}", open=False)
             sheet_var = tk.BooleanVar(value=False)
             self.tree_checkboxes[sheet_id] = sheet_var
-            self.market_tree_items[sheet_id] = {"type": "sheet", "sheet_name": sheet_name, "accounts": []}
+            self.market_tree_items[sheet_id] = {"type": "sheet", "sheet_name": sheet_name, "display_name": display_name, "accounts": []}
             
             # 명의자별로 트리 구성 (정렬: A, B 순서)
             for owner in sorted(owners.keys()):
@@ -2124,6 +2151,263 @@ class MainWindow(tk.Tk):
             return f"{parts[0]} > {parts[1]}"
         return full_category
     
+
+
+    def _normalize_store_categories(self, categories: List[str]) -> List[str]:
+        """스토어 카테고리 정규화(대>중 + 중복 제거)"""
+        return normalize_store_categories(categories)
+
+    def _build_sheet_used_combinations_cache(self, db_handler: DBHandler, sheet_name: str) -> Dict[str, set]:
+        """시트 단위 사용 조합 캐시 생성"""
+        return build_sheet_used_combinations_cache(db_handler.conn, sheet_name)
+
+    def _build_store_used_product_codes_cache(
+        self,
+        db_handler: DBHandler,
+        sheet_name: str,
+        business_number: str,
+    ) -> set:
+        """스토어 단위 이미 사용된 상품코드 캐시 생성"""
+        return build_store_used_product_codes_cache(db_handler.conn, sheet_name, business_number)
+
+    def _collect_store_category_combinations(
+        self,
+        db_handler: DBHandler,
+        sheet_name: str,
+        business_number: str,
+        store_categories: List[str],
+        exclude_assigned: bool,
+        product_code_filter_mode: str,
+        product_code_filter_codes,
+        export_mode: str,
+        sheet_used_combinations_cache: Dict[str, set],
+        store_used_product_codes_cache,
+    ):
+        """??? ????? ?? ?? + ?? ??/?? ??"""
+        available_combinations_by_category = {}
+        all_products_by_code = {}
+
+        season_filter_enabled = getattr(self, 'season_filter_var', tk.BooleanVar(value=True)).get() if export_mode == "upload" else False
+        season_config_for_log = None
+        check_season_validity = None
+        if season_filter_enabled:
+            try:
+                from season_filter_manager_gui import load_season_config, _check_season_validity
+                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                excel_path = os.path.join(script_dir, "Season_Filter_Seasons_Keywords.xlsx")
+                json_path = os.path.join(script_dir, "season_filters.json")
+                season_config_for_log = load_season_config(excel_path, json_path)
+                check_season_validity = _check_season_validity
+            except Exception:
+                season_config_for_log = None
+                check_season_validity = None
+
+        store_season_stats = {
+            'total_categories': len(store_categories),
+            'total_products_before': 0,
+            'total_products_after': 0,
+            'total_combinations': 0,
+            'season_excluded_count': 0,
+            'included_seasons': {},
+            'excluded_seasons': {}
+        }
+
+        for category in store_categories:
+            products = db_handler.get_products_for_upload(
+                category,
+                sheet_name,
+                business_number,
+                exclude_assigned=exclude_assigned,
+                season_filter_enabled=season_filter_enabled,
+                sheet_used_combinations=sheet_used_combinations_cache,
+                store_used_product_codes=store_used_product_codes_cache if exclude_assigned else None,
+                product_code_filter_mode=product_code_filter_mode,
+                product_code_filter_codes=product_code_filter_codes,
+            )
+
+            if product_code_filter_mode != "none" and product_code_filter_codes:
+                if hasattr(db_handler, '_last_product_code_filter_info') and db_handler._last_product_code_filter_info:
+                    filter_info = db_handler._last_product_code_filter_info.get(category)
+                    if filter_info:
+                        mode = filter_info.get('mode')
+                        original_codes = filter_info.get('original_product_codes_count', 0)
+                        filtered_codes = filter_info.get('filtered_product_codes_count', 0)
+                        excluded_codes = filter_info.get('excluded_codes_count', 0)
+                        original_combinations = filter_info.get('original_count', 0)
+                        filtered_combinations = filter_info.get('filtered_count', 0)
+
+                        if mode == "exclude" and excluded_codes > 0:
+                            self._log(
+                                f"    ?? ???? ???(??): {excluded_codes}? ???? ??? "
+                                f"(????: {original_codes}??{filtered_codes}?, ??: {original_combinations}??{filtered_combinations}?)"
+                            )
+                        elif mode == "include" and filtered_codes > 0:
+                            self._log(
+                                f"    ?? ???? ???(??): {filtered_codes}? ????? ??? "
+                                f"(??: {original_codes}? ????, ??: {original_combinations}??{filtered_combinations}?)"
+                            )
+
+            season_info = None
+            if season_filter_enabled and hasattr(db_handler, '_last_season_filter_info'):
+                season_info = db_handler._last_season_filter_info
+
+            if season_info:
+                update_store_season_stats(store_season_stats, season_info)
+
+            if season_filter_enabled:
+                log_category_season_result(
+                    log_fn=self._log,
+                    category=category,
+                    season_info=season_info,
+                    products_count=len(products),
+                    season_config_for_log=season_config_for_log,
+                    check_season_validity=check_season_validity,
+                )
+
+            if products:
+                available_combinations_by_category[category] = products
+                for product in products:
+                    product_code = product.get("??????", "")
+                    if not product_code:
+                        continue
+                    if product_code not in all_products_by_code:
+                        all_products_by_code[product_code] = []
+                    all_products_by_code[product_code].append(product)
+
+        return available_combinations_by_category, all_products_by_code, store_season_stats, season_filter_enabled
+
+    def _load_store_used_combinations(
+        self,
+        db_handler: DBHandler,
+        sheet_name: str,
+        business_number: str,
+    ) -> set:
+        """스토어에서 이미 사용된 조합 키를 로드한다 (exclude_assigned=False 전용)."""
+        store_used_combinations = set()
+        try:
+            cursor = db_handler.conn.cursor()
+
+            # 1) combination_assignments 기반 (정확한 combination_index 조합)
+            cursor.execute(
+                """
+                SELECT ca.product_code, ca.combination_index,
+                       pc.url_type, pc.product_name, pc.nukki_url, pc.mix_url
+                FROM combination_assignments ca
+                JOIN product_combinations pc
+                ON ca.product_code = pc.product_code
+                AND ca.combination_index = pc.combination_index
+                WHERE ca.sheet_name = ?
+                AND ca.business_number = ?
+                """,
+                (sheet_name, business_number),
+            )
+
+            for row in cursor.fetchall():
+                used_pc, _combo_idx, url_type, used_name, used_nukki, used_mix = row
+                if not used_pc:
+                    continue
+                if url_type == "nukki" and used_nukki:
+                    store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
+                elif url_type == "mix" and used_mix:
+                    store_used_combinations.add((used_pc, "mix", used_name, used_mix))
+                elif url_type == "name_only":
+                    store_used_combinations.add((used_pc, "name_only", used_name, ""))
+
+            # 2) upload_logs 기반 (하위 호환성)
+            cursor.execute(
+                """
+                SELECT DISTINCT product_code, used_nukki_url, used_mix_url, used_product_name
+                FROM upload_logs
+                WHERE market_name = ?
+                AND business_number = ?
+                AND upload_status = 'SUCCESS'
+                AND product_code IS NOT NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM combination_assignments ca
+                    WHERE ca.sheet_name = upload_logs.market_name
+                    AND ca.business_number = upload_logs.business_number
+                    AND ca.product_code = upload_logs.product_code
+                )
+                """,
+                (sheet_name, business_number),
+            )
+
+            for row in cursor.fetchall():
+                used_pc, used_nukki, used_mix, used_name = row
+                if not used_pc:
+                    continue
+                if used_nukki:
+                    store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
+                if used_mix:
+                    store_used_combinations.add((used_pc, "mix", used_name, used_mix))
+        except Exception as e:
+            self._log(f"    ⚠️ 스토어 조합 조회 실패: {e}")
+        return store_used_combinations
+
+    def _build_product_codes_list(
+        self,
+        all_products_by_code: Dict[str, List[Dict[str, Any]]],
+        exclude_assigned: bool,
+        total_quantity_limit: Optional[int],
+        global_used_combinations_db: set,
+    ) -> List[str]:
+        """상품코드 처리 순서를 생성한다 (필요 시 미출고 우선)."""
+        if exclude_assigned and total_quantity_limit is not None:
+            try:
+                exported_product_codes = {combo[0] for combo in global_used_combinations_db if combo[0]}
+                unexported_codes = []
+                exported_codes = []
+                for product_code in all_products_by_code.keys():
+                    if product_code in exported_product_codes:
+                        exported_codes.append(product_code)
+                    else:
+                        unexported_codes.append(product_code)
+
+                product_codes_list = sorted(unexported_codes) + sorted(exported_codes)
+                if unexported_codes:
+                    self._log(f"    📋 우선순위 적용: 출고된 적 없는 상품코드 {len(unexported_codes)}개를 먼저 처리")
+                return product_codes_list
+            except Exception as e:
+                self._log(f"    ⚠️ 출고 이력 조회 실패, 기본 정렬 사용: {e}")
+                return sorted(all_products_by_code.keys())
+
+        return sorted(all_products_by_code.keys())
+
+    def _select_available_combination_for_product(
+        self,
+        product_code: str,
+        available_combos: List[Dict[str, Any]],
+        global_used_combinations: set,
+        exclude_assigned: bool,
+        store_used_combinations: set,
+    ) -> Optional[Dict[str, Any]]:
+        """중복 조건을 만족하는 첫 번째 사용 가능 조합을 반환한다."""
+        for combo in available_combos:
+            combo_url_type = combo.get("url_type", "mix")
+            combo_line_index = combo.get("line_index", 0)
+            combo_final_name = combo.get("ST4_최종결과", "") or ""
+            combo_nukki_url = combo.get("누끼url", "") or ""
+            combo_mix_url = combo.get("믹스url", "") or ""
+
+            if combo_url_type == "mix":
+                combo_used_url = combo_mix_url
+            elif combo_url_type == "nukki":
+                combo_used_url = combo_nukki_url
+            else:
+                combo_used_url = ""
+
+            combo_key = (product_code, combo_url_type, combo_line_index, combo_final_name, combo_used_url)
+            if global_used_combinations and combo_key in global_used_combinations:
+                continue
+
+            if not exclude_assigned and store_used_combinations:
+                store_combo_key = (product_code, combo_url_type, combo_final_name, combo_used_url)
+                if store_combo_key in store_used_combinations:
+                    continue
+
+            return combo
+        return None
+
     def _check_category_duplicates(self, sheet_name: str, owner: str, store_key: str, selected_categories: List[str]) -> List[Dict[str, Any]]:
         """같은 명의자 내 다른 스토어와 카테고리 중복 체크"""
         duplicates = []
@@ -2279,7 +2563,7 @@ class MainWindow(tk.Tk):
         info_frame = ttk.LabelFrame(frame, text="스토어 정보", padding=10)
         info_frame.pack(fill='x', pady=(0, 10))
         
-        ttk.Label(info_frame, text=f"시트: {sheet_name}", font=("맑은 고딕", 9)).pack(anchor='w')
+        ttk.Label(info_frame, text=f"마켓: {SHEET_DISPLAY_NAMES.get(sheet_name, sheet_name)}", font=("맑은 고딕", 9)).pack(anchor='w')
         ttk.Label(info_frame, text=f"명의자: {owner}", font=("맑은 고딕", 9)).pack(anchor='w')
         ttk.Label(info_frame, text=f"사업자번호: {biz_num}", font=("맑은 고딕", 9)).pack(anchor='w')
         ttk.Label(info_frame, text=f"스토어 별칭: {store_alias}", font=("맑은 고딕", 9, "bold")).pack(anchor='w', pady=(5, 0))
@@ -3645,7 +3929,20 @@ class MainWindow(tk.Tk):
                 self._update_parent_state(parent_id)
         
         elif item_data.get("type") == "sheet":
-            # 시트의 부모: 루트
+            # 시트의 부모: 그룹 (소매처/도매처)
+            parent_id = self.market_tree.parent(item_id)
+            if parent_id and parent_id in self.tree_checkboxes:
+                children = self.market_tree.get_children(parent_id)
+                all_checked = all(
+                    self.tree_checkboxes.get(child, tk.BooleanVar()).get()
+                    for child in children
+                    if child in self.tree_checkboxes
+                )
+                self.tree_checkboxes[parent_id].set(all_checked)
+                self._update_parent_state(parent_id)
+
+        elif item_data.get("type") == "group":
+            # 그룹의 부모: 루트
             parent_id = self.market_tree.parent(item_id)
             if parent_id and parent_id in self.tree_checkboxes:
                 children = self.market_tree.get_children(parent_id)
@@ -3729,22 +4026,32 @@ class MainWindow(tk.Tk):
         root_children = self.market_tree.get_children()
         if root_children:
             root_id = root_children[0]  # 전체 선택 노드
-            # 시트 노드들만 열기
-            for sheet_id in self.market_tree.get_children(root_id):
-                item_data = self.market_tree_items.get(sheet_id, {})
-                if item_data.get("type") == "sheet":
-                    self.market_tree.item(sheet_id, open=True)
-    
+            # 그룹 노드 (소매처/도매처) 열기
+            for group_id in self.market_tree.get_children(root_id):
+                item_data = self.market_tree_items.get(group_id, {})
+                if item_data.get("type") == "group":
+                    self.market_tree.item(group_id, open=True)
+                    # 그룹 내 시트 노드들 열기
+                    for sheet_id in self.market_tree.get_children(group_id):
+                        sheet_data = self.market_tree_items.get(sheet_id, {})
+                        if sheet_data.get("type") == "sheet":
+                            self.market_tree.item(sheet_id, open=True)
+
     def _collapse_all_sheets(self):
         """모든 시트 노드 닫기 (시트 단위)"""
         root_children = self.market_tree.get_children()
         if root_children:
             root_id = root_children[0]  # 전체 선택 노드
-            # 시트 노드들만 닫기
-            for sheet_id in self.market_tree.get_children(root_id):
-                item_data = self.market_tree_items.get(sheet_id, {})
-                if item_data.get("type") == "sheet":
-                    self.market_tree.item(sheet_id, open=False)
+            # 그룹 노드 (소매처/도매처) 닫기
+            for group_id in self.market_tree.get_children(root_id):
+                item_data = self.market_tree_items.get(group_id, {})
+                if item_data.get("type") == "group":
+                    # 그룹 내 시트 노드들 닫기
+                    for sheet_id in self.market_tree.get_children(group_id):
+                        sheet_data = self.market_tree_items.get(sheet_id, {})
+                        if sheet_data.get("type") == "sheet":
+                            self.market_tree.item(sheet_id, open=False)
+                    self.market_tree.item(group_id, open=False)
     
     def _load_categories(self):
         """카테고리 트리 로드"""
@@ -5529,6 +5836,7 @@ class MainWindow(tk.Tk):
             import pandas as pd
             import json
             from datetime import datetime
+            from time import perf_counter
             
             # 진행 상황 다이얼로그 생성
             progress_dialog = self._create_progress_dialog("데이터 출고 진행 중")
@@ -5595,29 +5903,39 @@ class MainWindow(tk.Tk):
                 except ValueError:
                     total_quantity_limit = None
             
-            # 전체 조합 추적 (시트별이 아닌 전체 시트에 대해 동일 조합 추적)
-            # DB에서 실제 할당된 조합을 먼저 로드 (모든 시트에서)
-            global_used_combinations_db = set()  # DB에서 로드한 실제 할당된 조합 (전체 시트)
+            # 도매처/소매처별 조합 추적 (도매처↔소매처 간 조합 별도 추적)
+            # DB에서 실제 할당된 조합을 도매처/소매처별로 분리 로드
+            retail_used_combinations_db = set()    # 소매처 조합 (DB)
+            wholesale_used_combinations_db = set() # 도매처 조합 (DB)
             try:
                 cursor = db_handler.conn.cursor()
                 cursor.execute("""
-                    SELECT ca.product_code, ca.combination_index, 
-                           pc.url_type, pc.line_index, pc.product_name, 
+                    SELECT ca.product_code, ca.combination_index, ca.sheet_name,
+                           pc.url_type, pc.line_index, pc.product_name,
                            COALESCE(pc.nukki_url, ''), COALESCE(pc.mix_url, '')
                     FROM combination_assignments ca
-                    JOIN product_combinations pc 
-                    ON ca.product_code = pc.product_code 
+                    JOIN product_combinations pc
+                    ON ca.product_code = pc.product_code
                     AND ca.combination_index = pc.combination_index
                 """)
-                
+
                 for row in cursor.fetchall():
-                    pc, combo_idx, url_type, line_idx, prod_name, nukki, mix = row
+                    pc, combo_idx, sn, url_type, line_idx, prod_name, nukki, mix = row
                     used_url = nukki if url_type == "nukki" else (mix if url_type == "mix" else "")
-                    global_used_combinations_db.add((pc, url_type, line_idx, prod_name, used_url))
+                    combo_key = (pc, url_type, line_idx, prod_name, used_url)
+                    # 도매처/소매처 분류
+                    if sn in WHOLESALE_SHEETS:
+                        wholesale_used_combinations_db.add(combo_key)
+                    else:
+                        retail_used_combinations_db.add(combo_key)
             except Exception as e:
-                self._log(f"  ⚠️ 전체 조합 조회 실패: {e}")
-            
-            global_used_combinations = global_used_combinations_db.copy()  # 메모리에서도 추적 (이번 출고에서 할당한 조합)
+                self._log(f"  ⚠️ 조합 조회 실패: {e}")
+
+            # 메모리에서도 추적 (이번 출고에서 할당한 조합)
+            retail_used_combinations = retail_used_combinations_db.copy()
+            wholesale_used_combinations = wholesale_used_combinations_db.copy()
+
+            self._log(f"[조합 추적] 소매처: {len(retail_used_combinations_db)}개, 도매처: {len(wholesale_used_combinations_db)}개 (DB 로드)")
             
             # 2단계: 시트별로 처리
             # 중요: 전체 시트에 대해 동일 조합 추적 (시트별 독립 추적 제거)
@@ -5635,17 +5953,35 @@ class MainWindow(tk.Tk):
             
             for sheet_name, sheet_markets in markets_by_sheet.items():
                 self._log("")
-                self._log(f"=== 시트 '{sheet_name}' (오픈마켓) 처리 시작 ===")
+                # 도매처/소매처 구분
+                is_wholesale = sheet_name in WHOLESALE_SHEETS
+                group_type = "도매처" if is_wholesale else "소매처"
+                # 해당 그룹의 조합 세트 선택
+                global_used_combinations = wholesale_used_combinations if is_wholesale else retail_used_combinations
+                global_used_combinations_db = wholesale_used_combinations_db if is_wholesale else retail_used_combinations_db
+
+                display_name = SHEET_DISPLAY_NAMES.get(sheet_name, sheet_name)
+                self._log(f"=== {display_name} [{group_type}] 처리 시작 ===")
                 self._log(f"  선택된 스토어: {len(sheet_markets)}개")
-                self._log(f"  [중요] 전체 시트에 대해 동일 조합 추적 (시트별 독립 추적 제거)")
+                self._log(f"  [중요] {group_type} 내 동일 조합 추적 (도매처↔소매처 분리)")
                 if exclude_assigned:
                     self._log(f"  [중요] 새로운 DB만 출력 옵션 체크: 같은 스토어 내 같은 상품코드 출력 불가")
                 else:
                     self._log(f"  [중요] 옵션 체크 해제: 같은 스토어 내 같은 상품코드 출력 가능")
                 
+                # 시트 단위 캐시는 한 번만 생성하고 스토어 루프에서 재사용
+                sheet_used_combinations_cache = self._build_sheet_used_combinations_cache(db_handler, sheet_name)
+                store_used_product_codes_cache_map: Dict[str, set] = {}
+                
                 # 스토어별로 처리
                 # 시트별로 선택된 카테고리 목록 (스토어 메모에 카테고리가 있는 스토어는 해당 카테고리 사용)
                 for market_info in sheet_markets:
+                    store_started_at = perf_counter()
+                    store_collect_elapsed = 0.0
+                    store_assignment_elapsed = 0.0
+                    db_write_elapsed = 0.0
+                    file_write_elapsed = 0.0
+
                     market_name = market_info.get("market_name", "")
                     business_number = market_info.get("business_number", "")
                     alias = market_info.get("alias", "")
@@ -5664,7 +6000,8 @@ class MainWindow(tk.Tk):
                     registered_count = store_memo_data.get("registered_count", None)
                     
                     # 스토어별 카테고리 결정: 스토어 메모에 카테고리가 있으면 그것을 우선 사용, 없으면 선택된 카테고리 사용
-                    store_categories = memo_categories if memo_categories else selected_categories
+                    raw_store_categories = memo_categories if memo_categories else selected_categories
+                    store_categories = self._normalize_store_categories(raw_store_categories)
                     
                     if not store_categories:
                         self._log(f"  ⚠️ 스토어 '{market_name}' (별칭: {alias}): 카테고리가 지정되지 않음")
@@ -5697,197 +6034,41 @@ class MainWindow(tk.Tk):
                     # 스토어별 수량 제한 로그
                     if total_quantity_limit is not None:
                         self._log(f"  📊 스토어 '{market_name}' (별칭: {alias}): 스토어별 수량 제한 {total_quantity_limit}개 적용")
+
+                    store_used_product_codes_cache = None
+                    if exclude_assigned:
+                        cache_key = business_number or ""
+                        if cache_key not in store_used_product_codes_cache_map:
+                            store_used_product_codes_cache_map[cache_key] = self._build_store_used_product_codes_cache(
+                                db_handler,
+                                sheet_name,
+                                business_number,
+                            )
+                        store_used_product_codes_cache = store_used_product_codes_cache_map.get(cache_key)
                     
                     # 해당 스토어에서 사용 가능한 조합 조회 (스토어별로 business_number로 필터링)
-                    available_combinations_by_category = {}
-                    all_products_by_code = {}  # {product_code: [product1, product2, ...]} - 우선순위 순서
-                    
-                    # combination_assignments 조회 캐싱 (성능 최적화) - 시트별, 스토어별로 한 번만 조회
-                    cursor = db_handler.conn.cursor()
-                    
-                    # 시트별 사용된 조합 조회 (한 번만)
-                    cursor.execute("""
-                        SELECT DISTINCT combination_index, product_code
-                        FROM combination_assignments 
-                        WHERE sheet_name = ?
-                    """, (sheet_name,))
-                    
-                    sheet_used_combinations_cache = {}  # {product_code: set(combination_indices)}
-                    for row in cursor.fetchall():
-                        combo_idx, pc = row
-                        if pc and combo_idx is not None:
-                            if pc not in sheet_used_combinations_cache:
-                                sheet_used_combinations_cache[pc] = set()
-                            sheet_used_combinations_cache[pc].add(combo_idx)
-                    
-                    # 스토어별 사용된 상품코드 조회 (한 번만)
-                    store_used_product_codes_cache = set()
-                    if exclude_assigned and business_number:
-                        cursor.execute("""
-                            SELECT DISTINCT product_code
-                            FROM combination_assignments 
-                            WHERE sheet_name = ? AND business_number = ?
-                        """, (sheet_name, business_number))
-                        for row in cursor.fetchall():
-                            if row[0]:
-                                store_used_product_codes_cache.add(row[0])
-                    
-                    # 시즌 필터링 활성화 여부 가져오기 (스토어별로 동일)
-                    season_filter_enabled = getattr(self, 'season_filter_var', tk.BooleanVar(value=True)).get() if export_mode == "upload" else False
-                    
-                    # 스토어별 시즌 필터링 통계 수집 (요약 로그용)
-                    store_season_stats = {
-                        'total_categories': len(store_categories),
-                        'total_products_before': 0,
-                        'total_products_after': 0,
-                        'total_combinations': 0,
-                        'season_excluded_count': 0,
-                        'included_seasons': {},
-                        'excluded_seasons': {}
-                    }
-                    
-                    for category in store_categories:
-                        # 스토어별로 사용 가능한 조합 조회 (business_number로 필터링하여 스토어별로 독립적으로 관리)
-                        # 캐시된 데이터를 전달하여 중복 조회 방지 (성능 최적화)
-                        # 상품코드 필터링도 내부에서 처리하여 성능 최적화 (시즌 필터링 전에 적용)
-                        products = db_handler.get_products_for_upload(
-                            category, sheet_name, business_number, 
-                            exclude_assigned=exclude_assigned,
-                            season_filter_enabled=season_filter_enabled,
-                            sheet_used_combinations=sheet_used_combinations_cache,
-                            store_used_product_codes=store_used_product_codes_cache if exclude_assigned else None,
-                            product_code_filter_mode=product_code_filter_mode,
-                            product_code_filter_codes=product_code_filter_codes
-                        )
-                        
-                        # 상품코드 필터링 결과 로그 출력 (db_handler 내부에서 필터링 완료)
-                        if product_code_filter_mode != "none" and product_code_filter_codes:
-                            if hasattr(db_handler, '_last_product_code_filter_info') and db_handler._last_product_code_filter_info:
-                                filter_info = db_handler._last_product_code_filter_info.get(category)
-                                if filter_info:
-                                    mode = filter_info.get('mode')
-                                    original_codes = filter_info.get('original_product_codes_count', 0)
-                                    filtered_codes = filter_info.get('filtered_product_codes_count', 0)
-                                    excluded_codes = filter_info.get('excluded_codes_count', 0)
-                                    original_combinations = filter_info.get('original_count', 0)
-                                    filtered_combinations = filter_info.get('filtered_count', 0)
-                                    
-                                    if mode == "exclude" and excluded_codes > 0:
-                                        self._log(f"    🔍 상품코드 필터링 (제외): {excluded_codes}개 상품코드 제외됨 (상품코드: {original_codes}개 → {filtered_codes}개, 조합: {original_combinations}개 → {filtered_combinations}개)")
-                                    elif mode == "include" and filtered_codes > 0:
-                                        self._log(f"    🔍 상품코드 필터링 (포함): {filtered_codes}개 상품코드만 포함됨 (원본: {original_codes}개 상품코드, 조합: {original_combinations}개 → {filtered_combinations}개)")
-                        
-                        # 시즌 필터링 통계 수집
-                        if season_filter_enabled and hasattr(db_handler, '_last_season_filter_info') and db_handler._last_season_filter_info:
-                            season_info = db_handler._last_season_filter_info
-                            if 'error' not in season_info:
-                                store_season_stats['total_products_before'] += season_info.get('original_count', 0)
-                                store_season_stats['total_products_after'] += season_info.get('filtered_count', 0)
-                                store_season_stats['season_excluded_count'] += season_info.get('excluded_count', 0)
-                                
-                                # 포함된 시즌 통계
-                                included = season_info.get('included_seasons', {})
-                                for season_id, info in included.items():
-                                    season_name = info.get('name', season_id)
-                                    if season_name not in store_season_stats['included_seasons']:
-                                        store_season_stats['included_seasons'][season_name] = 0
-                                    store_season_stats['included_seasons'][season_name] += info.get('count', 0)
-                                
-                                # 제외된 시즌 통계
-                                excluded = season_info.get('excluded_seasons', {})
-                                for season_id, info in excluded.items():
-                                    season_name = info.get('name', season_id)
-                                    if season_name not in store_season_stats['excluded_seasons']:
-                                        store_season_stats['excluded_seasons'][season_name] = 0
-                                    store_season_stats['excluded_seasons'][season_name] += info.get('count', 0)
-                        
-                        store_season_stats['total_combinations'] += len(products)
-                        
-                        # 시즌 필터링 결과 로그 출력
-                        if season_filter_enabled:
-                            if hasattr(db_handler, '_last_season_filter_info') and db_handler._last_season_filter_info:
-                                season_info = db_handler._last_season_filter_info
-                                
-                                # 오류 정보가 있는 경우
-                                if 'error' in season_info:
-                                    self._log(f"    ⚠️ 카테고리 '{category}' 시즌 필터링: {season_info.get('error')}")
-                                else:
-                                    stats = season_info.get('season_stats', {})
-                                    included = season_info.get('included_seasons', {})
-                                    excluded = season_info.get('excluded_seasons', {})
-                                    
-                                    # 기본 통계
-                                    total_before = season_info.get('original_count', len(products) + season_info.get('excluded_count', 0))
-                                    total_after = season_info.get('filtered_count', len(products))
-                                    actual_returned = len(products)  # 실제 반환된 조합 수
-                                    
-                                    self._log(f"    📊 카테고리 '{category}' 시즌 필터링 결과:")
-                                    self._log(f"      - 전체 상품 코드: {total_before}개")
-                                    self._log(f"      - 일반 상품: {stats.get('non_season', 0)}개")
-                                    self._log(f"      - 시즌 상품 (포함): {stats.get('season_valid', 0)}개")
-                                    self._log(f"      - 시즌 지난 상품 (제외): {stats.get('season_invalid', 0)}개")
-                                    self._log(f"      - 필터링 후 상품 코드: {total_after}개 → 조합 {actual_returned}개 생성")
-                                    
-                                    # 포함된 시즌 정보 (ACTIVE만 표시)
-                                    if included:
-                                        # 시즌 상태 확인을 위해 시즌 설정 로드
-                                        try:
-                                            from season_filter_manager_gui import load_season_config, _check_season_validity
-                                            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                                            excel_path = os.path.join(script_dir, "Season_Filter_Seasons_Keywords.xlsx")
-                                            json_path = os.path.join(script_dir, "season_filters.json")
-                                            season_config = load_season_config(excel_path, json_path)
-                                            
-                                            active_included = []
-                                            for season_id, info in included.items():
-                                                # 시즌 상태 확인
-                                                season = next((s for s in season_config.get("seasons", []) if s.get("id") == season_id), None) if season_config else None
-                                                if season:
-                                                    from datetime import datetime
-                                                    status = _check_season_validity(season, datetime.now(), season_config)
-                                                    if status == 'ACTIVE':
-                                                        active_included.append((season_id, info))
-                                            
-                                            if active_included:
-                                                self._log(f"      ✅ 포함된 시즌 (출력 가능):")
-                                                for season_id, info in active_included:
-                                                    self._log(f"        - {info.get('name', season_id)}: {info.get('count', 0)}개")
-                                        except:
-                                            # 시즌 설정 로드 실패 시 기존 방식 사용
-                                            self._log(f"      ✅ 포함된 시즌:")
-                                            for season_id, info in included.items():
-                                                self._log(f"        - {info.get('name', season_id)}: {info.get('count', 0)}개")
-                                    
-                                    # 제외된 시즌 정보 (SOURCING + EXPIRED)
-                                    if excluded:
-                                        self._log(f"      ❌ 제외된 시즌:")
-                                        for season_id, info in excluded.items():
-                                            reason = info.get('reason', '시즌 기간 외')
-                                            name = info.get('name', season_id)
-                                            count = info.get('count', 0)
-                                            # "시즌명 - 사유 - 개수" 형식으로 표시
-                                            reason_clean = reason.replace(f"{name}(", "").replace(")", "").strip()
-                                            self._log(f"        - {name} - {reason_clean} - {count}개")
-                            else:
-                                # 시즌 필터링 정보가 없는 경우
-                                self._log(f"    ⚠️ 카테고리 '{category}' 시즌 필터링 정보 없음 (상품 조회 실패 또는 시즌 설정 미적용)")
-                        
-                        if products:
-                            available_combinations_by_category[category] = products
-                            
-                            # 상품코드별로 그룹화
-                            for product in products:
-                                product_code = product.get("상품코드", "")
-                                if not product_code:
-                                    continue
-                                
-                                if product_code not in all_products_by_code:
-                                    all_products_by_code[product_code] = []
-                                all_products_by_code[product_code].append(product)
-                    
-                    # 사용 가능한 조합이 없으면 해당 스토어 스킵
+                    # ??? ????? ??/?? ??
+                    collect_started_at = perf_counter()
+                    available_combinations_by_category, all_products_by_code, store_season_stats, season_filter_enabled = self._collect_store_category_combinations(
+                        db_handler=db_handler,
+                        sheet_name=sheet_name,
+                        business_number=business_number,
+                        store_categories=store_categories,
+                        exclude_assigned=exclude_assigned,
+                        product_code_filter_mode=product_code_filter_mode,
+                        product_code_filter_codes=product_code_filter_codes,
+                        export_mode=export_mode,
+                        sheet_used_combinations_cache=sheet_used_combinations_cache,
+                        store_used_product_codes_cache=store_used_product_codes_cache,
+                    )
+                    store_collect_elapsed = perf_counter() - collect_started_at
+
                     if not all_products_by_code:
                         self._log(f"  ⚠️ 스토어 '{market_name}' (별칭: {alias}): 사용 가능한 조합 없음")
+                        store_total_elapsed = perf_counter() - store_started_at
+                        self._log(
+                            f"  ⏱️ 성능계측[{alias}] 조합수집 {store_collect_elapsed:.3f}s / 총 {store_total_elapsed:.3f}s"
+                        )
                         continue
                     
                     # 해당 스토어의 데이터 수집
@@ -5906,90 +6087,23 @@ class MainWindow(tk.Tk):
                     # exclude_assigned=False일 때, 해당 스토어에서 이미 사용한 조합 확인
                     # 새로운 combination_assignments 테이블과 upload_logs 모두 확인
                     if not exclude_assigned:
-                        try:
-                            cursor = db_handler.conn.cursor()
-                            
-                            # 1. combination_assignments에서 조합 인덱스 확인
-                            cursor.execute("""
-                                SELECT ca.product_code, ca.combination_index, 
-                                       pc.url_type, pc.product_name, pc.nukki_url, pc.mix_url
-                                FROM combination_assignments ca
-                                JOIN product_combinations pc 
-                                ON ca.product_code = pc.product_code 
-                                AND ca.combination_index = pc.combination_index
-                                WHERE ca.sheet_name = ? 
-                                AND ca.business_number = ?
-                            """, (sheet_name, business_number))
-                            
-                            for row in cursor.fetchall():
-                                used_pc, combo_idx, url_type, used_name, used_nukki, used_mix = row
-                                if used_pc:
-                                    # 조합 키 생성
-                                    if url_type == "nukki" and used_nukki:
-                                        store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
-                                    elif url_type == "mix" and used_mix:
-                                        store_used_combinations.add((used_pc, "mix", used_name, used_mix))
-                                    elif url_type == "name_only":
-                                        store_used_combinations.add((used_pc, "name_only", used_name, ""))
-                            
-                            # 2. upload_logs에서도 확인 (하위 호환성)
-                            cursor.execute("""
-                                SELECT DISTINCT product_code, used_nukki_url, used_mix_url, used_product_name
-                                FROM upload_logs 
-                                WHERE market_name = ? 
-                                AND business_number = ?
-                                AND upload_status = 'SUCCESS'
-                                AND product_code IS NOT NULL
-                                AND NOT EXISTS (
-                                    SELECT 1 FROM combination_assignments ca
-                                    WHERE ca.sheet_name = upload_logs.market_name
-                                    AND ca.business_number = upload_logs.business_number
-                                    AND ca.product_code = upload_logs.product_code
-                                )
-                            """, (sheet_name, business_number))
-                            
-                            for row in cursor.fetchall():
-                                used_pc, used_nukki, used_mix, used_name = row
-                                if used_pc:
-                                    # 조합 키 생성 (상품코드, url_type, line_index는 정확히 알 수 없으므로 URL과 상품명으로만 판단)
-                                    if used_nukki:
-                                        store_used_combinations.add((used_pc, "nukki", used_name, used_nukki))
-                                    if used_mix:
-                                        store_used_combinations.add((used_pc, "mix", used_name, used_mix))
-                        except Exception as e:
-                            self._log(f"    ⚠️ 스토어 조합 조회 실패: {e}")
+                        store_used_combinations = self._load_store_used_combinations(
+                            db_handler=db_handler,
+                            sheet_name=sheet_name,
+                            business_number=business_number,
+                        )
                     
                     # 상품코드 중심으로 처리 (카테고리 순서가 아닌 상품코드 순서로)
-                    # 우선순위: 출력 상품수 제한이 있으면 우선적으로 출고된 적 없는 상품코드 먼저
-                    # exclude_assigned=True일 때만 우선순위 적용 (출고된 적 없는 상품코드 먼저)
-                    if exclude_assigned and total_quantity_limit is not None:
-                        # 출고된 적 없는 상품코드와 출고된 적 있는 상품코드 분리
-                        unexported_codes = []
-                        exported_codes = []
-                        
-                        # 출고 이력 확인 (전체 시트에서 확인 - global_used_combinations 기준)
-                        # global_used_combinations_db에 있는 상품코드는 이미 출고된 것으로 간주
-                        try:
-                            # global_used_combinations_db에서 상품코드 추출
-                            exported_product_codes = {combo[0] for combo in global_used_combinations_db if combo[0]}
-                            
-                            for product_code in all_products_by_code.keys():
-                                if product_code in exported_product_codes:
-                                    exported_codes.append(product_code)
-                                else:
-                                    unexported_codes.append(product_code)
-                            
-                            # 출고된 적 없는 상품코드를 먼저, 그 다음 출고된 적 있는 상품코드
-                            product_codes_list = sorted(unexported_codes) + sorted(exported_codes)
-                            if unexported_codes:
-                                self._log(f"    📋 우선순위 적용: 출고된 적 없는 상품코드 {len(unexported_codes)}개를 먼저 처리")
-                        except Exception as e:
-                            self._log(f"    ⚠️ 출고 이력 조회 실패, 기본 정렬 사용: {e}")
-                            product_codes_list = sorted(all_products_by_code.keys())
-                    else:
-                        # 우선순위 적용 안 함 (기본 정렬)
-                        product_codes_list = sorted(all_products_by_code.keys())  # 상품코드 리스트 (정렬하여 일관성 유지)
+                    product_codes_list = self._build_product_codes_list(
+                        all_products_by_code=all_products_by_code,
+                        exclude_assigned=exclude_assigned,
+                        total_quantity_limit=total_quantity_limit,
+                        global_used_combinations_db=global_used_combinations_db,
+                    )
+                    market_id = market_id_cache.get(sheet_name)
+                    store_categories_note = ', '.join(store_categories) if store_categories else 'N/A'
                     
+                    assignment_started_at = perf_counter()
                     for product_code in product_codes_list:
                         # 등록된 상품수량 필터링 (출력 상품수량 제한 필터 전에 검증)
                         if store_registered_limit is not None:
@@ -5997,7 +6111,7 @@ class MainWindow(tk.Tk):
                                 # 등록된 상품수량 제한 초과 (이미 할당된 상품코드 수가 등록된 상품수량에 도달)
                                 registered_count_skipped += 1
                                 continue
-                        
+
                         # 스토어별 수량 제한 확인 (각 스토어별로 엑셀에 제공될 개수 제한)
                         # 주의: 실제로 조합이 할당된 후에만 카운트에 포함되므로, 여기서는 예비 체크만 수행
                         if total_quantity_limit is not None:
@@ -6005,23 +6119,26 @@ class MainWindow(tk.Tk):
                                 # 스토어별 수량 제한 초과 (이미 할당된 상품코드 수가 제한에 도달)
                                 skipped_count += 1
                                 continue
-                        
+
                         # 새로운 DB만 출력 옵션 체크시: 같은 스토어 내 같은 상품코드는 1개 조합만 사용
                         # 옵션 체크 해제시: 같은 스토어 내 같은 상품코드 출력 가능
                         if exclude_assigned and product_code in store_used_product_codes:
                             skipped_count += 1
                             continue
-                        
-                        # 순환식 조합 선택 (store_combination_state 테이블 사용)
-                        found_product = db_handler.get_next_combination_for_store(
+
+                        # === 성능 최적화: 이미 조회된 조합 사용 (이중 조회 제거) ===
+                        # get_products_for_upload에서 이미 조합을 조회하여 all_products_by_code에 저장함
+                        # get_next_combination_for_store 호출 제거 → DB 쿼리 대폭 감소
+                        available_combos = all_products_by_code.get(product_code, [])
+
+                        found_product = self._select_available_combination_for_product(
                             product_code=product_code,
-                            sheet_name=sheet_name,
-                            business_number=business_number,
-                            exclude_assigned=exclude_assigned,
+                            available_combos=available_combos,
                             global_used_combinations=global_used_combinations,
-                            store_used_combinations=store_used_combinations if not exclude_assigned else None
+                            exclude_assigned=exclude_assigned,
+                            store_used_combinations=store_used_combinations,
                         )
-                        
+
                         # 사용 가능한 조합이 없으면 스킵
                         if not found_product:
                             continue
@@ -6051,12 +6168,6 @@ class MainWindow(tk.Tk):
                         if not exclude_assigned:
                             candidate_combination_key = (product_code, url_type, final_name, used_url)
                             store_used_combinations.add(candidate_combination_key)
-                        
-                        # 상태 업데이트 커밋 (get_next_combination_for_store에서 이미 업데이트됨)
-                        try:
-                            db_handler.conn.commit()
-                        except Exception as e:
-                            self._log(f"    ⚠️ 상태 업데이트 커밋 실패: {e}")
                         
                         # 새로운 조합 할당 테이블에 기록 (배치 INSERT로 변경 - 성능 최적화)
                         combination_index = found_product.get("combination_index")
@@ -6119,9 +6230,6 @@ class MainWindow(tk.Tk):
                             store_processed_codes.add(product_code)
                         
                         # DB에 기록 준비 (배치 INSERT로 변경 - 성능 최적화)
-                        # market_id는 캐시에서 가져오기 (이미 조회됨)
-                        market_id = market_id_cache.get(sheet_name)
-                        
                         # 상품명 인덱스는 실제 사용한 줄 번호
                         product_name_index = line_index
                         image_mix_index = 0 if url_type == "mix" else None
@@ -6157,7 +6265,7 @@ class MainWindow(tk.Tk):
                                 image_mix_index,
                                 json.dumps(strategy, ensure_ascii=False),
                                 "SUCCESS",
-                                f"카테고리: {', '.join(store_categories) if store_categories else 'N/A'}, 마켓: {market_name}, 스토어별칭: {alias}, 줄번호: {line_index}",
+                                f"카테고리: {store_categories_note}, 마켓: {market_name}, 스토어별칭: {alias}, 줄번호: {line_index}",
                                 datetime.now().isoformat()
                             ))
                             market_logged_count += 1
@@ -6168,7 +6276,10 @@ class MainWindow(tk.Tk):
                         else:
                             self._log(f"      ⏭️ DB 기록 건너뜀 (재다운로드): 상품코드 '{product_code}' → 마켓 '{sheet_name}' / 스토어 '{market_name}' / 조합: {url_type}url + 상품명({line_index+1}번째줄)")
                     
+                    store_assignment_elapsed = perf_counter() - assignment_started_at
+
                     # 배치 INSERT 실행 (성능 최적화)
+                    db_write_started_at = perf_counter()
                     try:
                         cursor = db_handler.conn.cursor()
                         
@@ -6200,6 +6311,8 @@ class MainWindow(tk.Tk):
                         self._log(f"    ⚠️ 배치 DB 기록 실패: {e}")
                         import traceback
                         self._log(traceback.format_exc())
+                    finally:
+                        db_write_elapsed = perf_counter() - db_write_started_at
                     
                     # 배치 리스트 초기화 (다음 스토어를 위해)
                     combination_assignments_batch.clear()
@@ -6247,6 +6360,7 @@ class MainWindow(tk.Tk):
                         
                         filepath = os.path.join(save_dir, filename)
                         
+                        file_write_started_at = perf_counter()
                         try:
                             df = pd.DataFrame(market_export_data)
                             # ExcelWriter를 사용하여 권한 문제 해결 (임시 파일 사용 안 함)
@@ -6324,6 +6438,7 @@ class MainWindow(tk.Tk):
                                 progress = int((processed_stores / total_stores) * 95) + 5  # 5% ~ 100%
                                 self._update_progress(progress, f"스토어 처리 중: {processed_stores}/{total_stores} ({alias})")
                         except Exception as e:
+                            file_write_elapsed = perf_counter() - file_write_started_at
                             self._log(f"❌ 파일 저장 실패: {filename} - {e}")
                             # 진행률 업데이트 (실패해도 카운트)
                             processed_stores += 1
@@ -6331,6 +6446,8 @@ class MainWindow(tk.Tk):
                                 progress = int((processed_stores / total_stores) * 95) + 5
                                 self._update_progress(progress, f"스토어 처리 중: {processed_stores}/{total_stores} ({alias})")
                                 self._update_progress_dialog(progress_dialog, progress, f"스토어 처리 중: {processed_stores}/{total_stores}", f"⚠️ {alias}: 파일 저장 실패 - {e}")
+                        else:
+                            file_write_elapsed = perf_counter() - file_write_started_at
                     else:
                         self._log(f"  ⚠️ 스토어 '{market_name}' (별칭: {alias}): 할당된 조합 없음")
                         # 디버깅: 왜 할당되지 않았는지 확인
@@ -6355,8 +6472,15 @@ class MainWindow(tk.Tk):
                             progress = int((processed_stores / total_stores) * 95) + 5
                             self._update_progress(progress, f"스토어 처리 중: {processed_stores}/{total_stores} ({alias})")
                             self._update_progress_dialog(progress_dialog, progress, f"스토어 처리 중: {processed_stores}/{total_stores}", f"ℹ️ {alias}: 할당된 조합 없음 (스킵)")
+
+                    store_total_elapsed = perf_counter() - store_started_at
+                    self._log(
+                        f"  ⏱️ 성능계측[{alias}] 조합수집 {store_collect_elapsed:.3f}s / "
+                        f"코드할당 {store_assignment_elapsed:.3f}s / DB기록 {db_write_elapsed:.3f}s / "
+                        f"파일저장 {file_write_elapsed:.3f}s / 총 {store_total_elapsed:.3f}s"
+                    )
                 
-                self._log(f"=== 시트 '{sheet_name}' 처리 완료 ===")
+                self._log(f"=== {display_name} [{group_type}] 처리 완료 ===")
             
             # 전체 결과 요약
             self._update_progress(100, "완료")

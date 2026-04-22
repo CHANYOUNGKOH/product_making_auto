@@ -8,6 +8,10 @@ import json
 from datetime import datetime
 import shutil
 
+SCRIPT_REQUIRED_MODULES = {
+    "Ownerclan_Converter": ["PyQt5", "pandas", "openpyxl"],
+}
+
 # =============================================================================
 # [설정] 프로그램별 실행 파일 경로 매핑
 # =============================================================================
@@ -29,7 +33,7 @@ SCRIPTS = {
         "desc": "데이터 출고 도구\nDB에서 마켓 업로드용 데이터를 내보냅니다.\n중복 방지 및 출고 이력 기록"
     },
     "Ownerclan_Converter": {
-        "folder": r"C:\Users\kohaz\Desktop\Python\.cursor\260117_오너클랜_이셀러스변환\.claude\skills\esellers-converter\scripts\gui",
+        "folder": r"OC_ES_converter\scripts\gui",
         "file": "main.py",
         "desc": "오너클랜 → 이셀러스 변환기\n오너클랜 양식을 이셀러스 양식으로 변환합니다.\n스토어별 특이사항에 맞게 변환됩니다."
     },
@@ -37,6 +41,11 @@ SCRIPTS = {
         "folder": "Upload_Mapper",
         "file": "main.py",
         "desc": "상품 등록 맵퍼\n등록 솔루션 엑셀과 가공된 엑셀을 매핑하여 업로드용 엑셀을 생성합니다."
+    },
+    "Market_Price_UI": {
+        "folder": r"C:\\Users\\kohaz\\Desktop\\Python\\.cursor",
+        "file": "market_price_ui_tk.py",
+        "desc": "\ub9c8\ucf13 \ud310\ub9e4\uac00\uc728 \uc790\ub3d9 \uc870\uc815 UI \uc2e4\ud589"
     },
     "Merge_Versions": {
         "folder": "",
@@ -198,6 +207,70 @@ def get_base_dir() -> Path:
     return Path(__file__).resolve().parent
 
 BASE_DIR = get_base_dir()
+
+def get_preferred_launcher_python() -> str | None:
+    """상품가공프로그램용으로 우선 사용할 Python 경로를 찾습니다."""
+    candidates = [
+        BASE_DIR / ".venv" / "Scripts" / "python.exe",
+        BASE_DIR / "venv" / "Scripts" / "python.exe",
+        BASE_DIR / "python.exe",
+    ]
+
+    for path in candidates:
+        if path.exists():
+            return str(path)
+
+    base_prefix = getattr(sys, "base_prefix", "")
+    if base_prefix:
+        base_python = Path(base_prefix) / "python.exe"
+        if base_python.exists():
+            return str(base_python)
+
+    common_paths = [
+        r"C:\Program Files\Python312\python.exe",
+        r"C:\Python312\python.exe",
+        r"C:\Program Files\Python311\python.exe",
+        r"C:\Python311\python.exe",
+        r"C:\Program Files\Python310\python.exe",
+        r"C:\Python310\python.exe",
+    ]
+    for path in common_paths:
+        if os.path.exists(path):
+            return path
+
+    return None
+
+def should_relaunch_with_preferred_python() -> bool:
+    """다른 프로젝트 가상환경에서 실행 중이면 True를 반환합니다."""
+    current_python = str(sys.executable).strip().lower()
+    base_dir_lower = str(BASE_DIR).lower()
+
+    if base_dir_lower in current_python:
+        return False
+
+    return ".venv" in current_python or "\\venv\\" in current_python
+
+def relaunch_with_preferred_python_if_needed():
+    """잘못된 가상환경에서 실행 중이면 권장 Python으로 재실행합니다."""
+    if os.environ.get("PRODUCT_PIPELINE_RELAUNCHED") == "1":
+        return
+
+    if not should_relaunch_with_preferred_python():
+        return
+
+    preferred_python = get_preferred_launcher_python()
+    current_python = str(sys.executable).strip()
+
+    if not preferred_python or os.path.normcase(preferred_python) == os.path.normcase(current_python):
+        return
+
+    env = os.environ.copy()
+    env["PRODUCT_PIPELINE_RELAUNCHED"] = "1"
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    subprocess.Popen([preferred_python, "-X", "utf8", str(Path(__file__).resolve())], env=env)
+    sys.exit(0)
 
 # ========================================================
 # [CORE] 작업 이력 관리자 (JSON DB)
@@ -509,6 +582,7 @@ class PipelineLauncher(tk.Tk):
 
         self._setup_styles()
         self._init_ui()
+        self.after(100, self._warn_if_wrong_python_environment)
 
     def _setup_styles(self):
         style = ttk.Style()
@@ -996,6 +1070,17 @@ class PipelineLauncher(tk.Tk):
         if converter_info: ToolTip(converter_btn, converter_info["desc"])
         
         # 상품 등록 맵퍼 버튼
+        # ??? UI ??
+        market_price_btn = tk.Button(btn_wrapper, text="\ub4f1\ub85d\uac00 \uacc4\uc0b0\uae30\n(Market Price)", 
+            bg="#26A69A", fg="white", font=("?? ??", 10, "bold"),
+            relief="raised", width=18, height=2, cursor="hand2",
+            activebackground="#1E8E83", activeforeground="white",
+            command=lambda: self.run_script("Market_Price_UI"),
+            bd=1, highlightthickness=0)
+        market_price_btn.pack(side="left", padx=3)
+        market_price_info = SCRIPTS.get("Market_Price_UI")
+        if market_price_info: ToolTip(market_price_btn, market_price_info["desc"])
+
         mapper_btn = tk.Button(btn_wrapper, text="📋 상품 등록 맵퍼\n(Upload Mapper)", 
             bg="#6dc951", fg="white", font=("맑은 고딕", 10, "bold"),
             relief="raised", width=18, height=2, cursor="hand2",
@@ -1840,26 +1925,41 @@ Stage 5: 품질 검증 및 업로드 (I5 → I5(업완))
             self.update_idletasks()
             
             # Python 인터프리터 경로 찾기
-            python_cmd = self._find_python_executable()
+            required_modules = SCRIPT_REQUIRED_MODULES.get(script_key, [])
+            python_cmd = self._find_python_executable(required_modules=required_modules)
             
             if not python_cmd:
-                # Python을 찾을 수 없는 경우
-                self._update_status("error", "Python을 찾을 수 없습니다.")
+                # Python 또는 필수 모듈을 찾을 수 없는 경우
+                self._update_status("error", "실행 가능한 Python 환경을 찾을 수 없습니다.")
                 error_msg = (
-                    "Python을 찾을 수 없습니다.\n\n"
-                    "하위 스크립트를 실행하려면 Python이 설치되어 있어야 합니다.\n\n"
+                    "실행 가능한 Python 환경을 찾을 수 없습니다.\n\n"
+                    "하위 스크립트를 실행하려면 Python이 설치되어 있어야 하며,\n"
+                    "필요한 모듈도 같은 Python에 설치되어 있어야 합니다.\n\n"
                     "해결 방법:\n"
                     "1. Python이 설치되어 있는지 확인하세요\n"
                     "2. Python이 PATH 환경 변수에 추가되어 있는지 확인하세요\n"
-                    "3. 명령 프롬프트에서 'python --version' 명령어가 작동하는지 확인하세요\n\n"
+                    "3. 명령 프롬프트에서 'python --version' 명령어가 작동하는지 확인하세요\n"
+                    f"4. 필요 모듈 설치: {', '.join(required_modules) if required_modules else '없음'}\n\n"
                     f"스크립트 경로: {target_path}"
                 )
                 messagebox.showerror("실행 오류", error_msg)
                 self._reset_ui_state()
                 return
             
+            launch_env = os.environ.copy()
+            launch_env["PYTHONUTF8"] = "1"
+            launch_env["PYTHONIOENCODING"] = "utf-8"
+            if script_key == "Ownerclan_Converter":
+                qt_plugin_path = self._get_qt_plugin_path(python_cmd)
+                if qt_plugin_path:
+                    launch_env["QT_QPA_PLATFORM_PLUGIN_PATH"] = qt_plugin_path
+
             # 하위 스크립트 실행
-            subprocess.Popen([python_cmd, str(target_path)], cwd=str(work_dir))
+            subprocess.Popen(
+                [python_cmd, "-X", "utf8", str(target_path)],
+                cwd=str(work_dir),
+                env=launch_env,
+            )
             self.after(3000, lambda: self._reset_ui_state())
         except FileNotFoundError as e:
             # Python을 찾을 수 없는 경우
@@ -1880,43 +1980,50 @@ Stage 5: 품질 검증 및 업로드 (I5 → I5(업완))
             messagebox.showerror("실행 오류", f"실행 실패:\n{e}\n\n경로: {target_path}")
             self._reset_ui_state()
 
-    def _find_python_executable(self):
-        """
-        Python 실행 파일 경로를 찾습니다.
-        여러 방법을 순차적으로 시도합니다.
-        """
-        # 방법 1: 일반 실행 환경에서는 sys.executable 사용
+    def _iter_python_candidates(self):
+        """실행 가능한 Python 후보 경로를 중복 없이 반환합니다."""
+        seen = set()
+
+        def add_candidate(candidate):
+            if not candidate:
+                return
+            candidate = str(candidate).strip()
+            if not candidate or candidate in seen:
+                return
+            seen.add(candidate)
+            yield candidate
+
+        project_python_candidates = [
+            BASE_DIR / ".venv" / "Scripts" / "python.exe",
+            BASE_DIR / "venv" / "Scripts" / "python.exe",
+            BASE_DIR / "python.exe",
+        ]
+        for path in project_python_candidates:
+            if path.exists():
+                yield from add_candidate(path)
+
+        current_python = str(sys.executable).strip()
+        current_python_lower = current_python.lower()
+        base_dir_lower = str(BASE_DIR).lower()
+        is_venv_python = ".venv" in current_python_lower or "\\venv\\" in current_python_lower
+        is_project_python = current_python_lower.startswith(base_dir_lower)
+
+        if is_project_python or not is_venv_python:
+            yield from add_candidate(current_python)
+
+        for cmd in ["python", "python3", "py"]:
+            yield from add_candidate(shutil.which(cmd))
+
+        if is_venv_python:
+            yield from add_candidate(current_python)
+
         if not getattr(sys, "frozen", False):
-            return sys.executable
-        
-        # 방법 2: PyInstaller 환경에서 여러 Python 명령어 시도
-        python_commands = ["python", "python3", "py"]
-        
-        for cmd in python_commands:
-            try:
-                # shutil.which를 사용하여 PATH에서 찾기
-                python_path = shutil.which(cmd)
-                if python_path:
-                    # 실행 가능한지 확인
-                    result = subprocess.run(
-                        [python_path, "--version"],
-                        capture_output=True,
-                        timeout=5,
-                        text=True
-                    )
-                    if result.returncode == 0:
-                        return python_path
-            except Exception:
-                continue
-        
-        # 방법 3: 환경 변수에서 Python 경로 찾기
+            return
+
         python_home = os.environ.get("PYTHON_HOME") or os.environ.get("PYTHONHOME")
         if python_home:
-            python_exe = os.path.join(python_home, "python.exe")
-            if os.path.exists(python_exe):
-                return python_exe
-        
-        # 방법 4: 일반적인 Python 설치 경로 확인 (Windows)
+            yield from add_candidate(os.path.join(python_home, "python.exe"))
+
         if sys.platform == "win32":
             common_paths = [
                 r"C:\Python312\python.exe",
@@ -1931,9 +2038,79 @@ Stage 5: 품질 검증 및 업로드 (I5 → I5(업완))
             ]
             for path in common_paths:
                 if os.path.exists(path):
-                    return path
-        
-        # 모든 방법 실패
+                    yield from add_candidate(path)
+
+        if current_python and not is_project_python:
+            yield from add_candidate(current_python)
+
+    def _python_supports_modules(self, python_path, required_modules):
+        """주어진 Python이 필요한 모듈을 import할 수 있는지 확인합니다."""
+        if not required_modules:
+            return True, ""
+
+        import_code = "\n".join([f"import {module}" for module in required_modules])
+        try:
+            result = subprocess.run(
+                [python_path, "-X", "utf8", "-c", import_code],
+                capture_output=True,
+                timeout=8,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except Exception as e:
+            return False, str(e)
+
+        if result.returncode == 0:
+            return True, ""
+
+        error_text = (result.stderr or result.stdout or "").strip()
+        return False, error_text
+
+    def _get_qt_plugin_path(self, python_path):
+        """선택한 Python에서 Qt plugin 경로를 조회합니다."""
+        code = "from PyQt5.QtCore import QLibraryInfo; print(QLibraryInfo.location(QLibraryInfo.PluginsPath))"
+        try:
+            result = subprocess.run(
+                [python_path, "-X", "utf8", "-c", code],
+                capture_output=True,
+                timeout=8,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except Exception:
+            return ""
+
+        if result.returncode != 0:
+            return ""
+
+        return (result.stdout or "").strip()
+
+    def _find_python_executable(self, required_modules=None):
+        """
+        Python 실행 파일 경로를 찾습니다.
+        여러 방법을 순차적으로 시도합니다.
+        """
+        for python_path in self._iter_python_candidates():
+            try:
+                result = subprocess.run(
+                    [python_path, "--version"],
+                    capture_output=True,
+                    timeout=5,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if result.returncode != 0:
+                    continue
+            except Exception:
+                continue
+
+            supported, _ = self._python_supports_modules(python_path, required_modules)
+            if supported:
+                return python_path
+
         return None
     
     def _reset_ui_state(self):
@@ -2017,6 +2194,31 @@ Stage 5: 품질 검증 및 업로드 (I5 → I5(업완))
             self.lbl_status_icon.config(text="❌")
             self.lbl_status_text.config(text=message, fg="#dc3545")
 
+    def _warn_if_wrong_python_environment(self):
+        """다른 프로젝트 가상환경에서 런처가 실행된 경우 경고합니다."""
+        current_python = str(sys.executable).strip()
+        current_python_lower = current_python.lower()
+        base_dir_lower = str(BASE_DIR).lower()
+
+        if base_dir_lower in current_python_lower:
+            return
+
+        if ".venv" not in current_python_lower and "\\venv\\" not in current_python_lower:
+            return
+
+        preferred_python = self._find_python_executable()
+        preferred_text = preferred_python if preferred_python else "찾지 못함"
+
+        messagebox.showwarning(
+            "실행 환경 경고",
+            "현재 런처가 다른 프로젝트의 가상환경 Python으로 실행되었습니다.\n\n"
+            f"현재 Python:\n{current_python}\n\n"
+            "이 상태에서는 일부 버튼 실행이 꼬일 수 있습니다.\n"
+            "상품가공프로그램 폴더 기준 Python으로 실행하세요.\n\n"
+            f"권장 Python:\n{preferred_text}"
+        )
+
 if __name__ == "__main__":
+    relaunch_with_preferred_python_if_needed()
     app = PipelineLauncher()
     app.mainloop()

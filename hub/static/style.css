@@ -1,0 +1,185 @@
+:root {
+  --bg: #16181f;
+  --card: #1d2030;
+  --border: #2a2d3e;
+  --text: #f0f1f8;
+  --muted: #8b8fa8;
+  --accent: #7c8cf8;
+  --green: #34d474;
+  --yellow: #facc15;
+  --orange: #fb923c;
+  --red: #f87171;
+  --sidebar-w: 230px;
+  --surface: rgba(255,255,255,0.08);
+
+  /* 마켓 컬러 */
+  --market-godomall: #7ab0ff;
+  --market-smartstore: #34d474;
+  --market-auction: #fb923c;
+  --market-gmarket: #facc15;
+  --market-11st: #c084fc;
+  --market-coupang: #f87171;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* -- 사이드바 -- */
+#sidebar {
+  width: var(--sidebar-w);
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  padding: 16px 0;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 8px 20px 20px;
+  letter-spacing: 0.5px;
+}
+
+.nav-group { margin-bottom: 8px; }
+
+.nav-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 4px 20px;
+}
+
+.nav-item {
+  display: block;
+  padding: 9px 20px;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 0;
+  transition: background 0.15s;
+  font-size: 14px;
+}
+
+.nav-item:hover { background: rgba(124, 140, 248, 0.1); }
+.nav-item.active {
+  background: rgba(124, 140, 248, 0.18);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* -- 메인 콘텐츠 -- */
+#content {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 32px 40px;
+  min-height: 100vh;
+}
+
+/* -- 공통 컴포넌트 -- */
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-success { background: var(--green); color: #000; }
+.btn-danger  { background: var(--red);   color: #fff; }
+
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pill-done     { background: rgba(52,212,116,0.2); color: var(--green); }
+.pill-progress { background: rgba(252,204,21,0.2);  color: var(--yellow); }
+.pill-todo     { background: rgba(139,143,168,0.15); color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+tbody td { padding: 10px 12px; vertical-align: middle; }
+
+.loading { color: var(--muted); padding: 40px; }
+
+.market-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 2px;
+}
