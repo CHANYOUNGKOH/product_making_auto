@@ -5,6 +5,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from hub.services.register_service import MARKET_TO_GROUP
+
 
 class ForbiddenSeverity(str, Enum):
     HIGH = "HIGH"
@@ -12,13 +14,20 @@ class ForbiddenSeverity(str, Enum):
     LOW = "LOW"
 
 
+CANONICAL_FORBIDDEN_SCOPE_VALUES = tuple(
+    dict.fromkeys(["all", *MARKET_TO_GROUP.values()])
+)
+
+
 class ForbiddenScope(str, Enum):
     ALL = "all"
     NAVER = "naver"
-    GODOMALL = "godomall"
-    SMARTSTORE = "smartstore"
-    ELEVENST = "11st"
     ESM = "esm"
+    ST11 = "st11"
+    COUPANG = "coupang"
+    INTERPARK = "interpark"
+    TMON = "tmon"
+    WMP = "wmp"
 
 
 class ForbiddenTermRecord(BaseModel):
@@ -31,6 +40,7 @@ class ForbiddenTermRecord(BaseModel):
 
 
 __all__ = [
+    "CANONICAL_FORBIDDEN_SCOPE_VALUES",
     "ForbiddenScope",
     "ForbiddenSeverity",
     "ForbiddenTermRecord",
