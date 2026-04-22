@@ -270,3 +270,29 @@ def upload_product(product, strategy, account):
 - 스레딩으로 GUI가 멈추지 않지만, 실제 API 호출 시 rate limit을 고려하세요.
 - 별칭에서 사업자번호 추출은 간단한 로직을 사용하므로, 필요시 별도 매핑 테이블을 추가할 수 있습니다.
 
+## 2.1 `pipeline_working.db` / `audit_inventory`
+
+`products.db` remains the source of truth. Phase 1 pipeline audit rows must be
+stored in a separate sibling database file named `pipeline_working.db`.
+
+The migration uses `CREATE TABLE IF NOT EXISTS`, while `sqlite_master.sql`
+stores the schema in the normalized form below.
+
+```sql
+CREATE TABLE audit_inventory (
+    phase TEXT NOT NULL,
+    component TEXT NOT NULL,
+    file_path TEXT,
+    symbol TEXT,
+    line_range TEXT,
+    status TEXT NOT NULL,
+    evidence TEXT NOT NULL CHECK (trim(evidence) != ''),
+    gap_to TEXT,
+    owner_hint TEXT,
+    notes TEXT,
+    verified_by TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    PRIMARY KEY (phase, component)
+);
+```
