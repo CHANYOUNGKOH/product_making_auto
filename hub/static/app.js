@@ -3,6 +3,7 @@ const PAGES = {
   dashboard:         window.renderDashboard,
   products:          window.renderProducts,
   vendors:           window.renderVendors,
+  imageGenai:        window.renderImageGenai,
   pipeline:          window.renderPipeline,
   export:            window.renderExport,
   stores:            window.renderStores,

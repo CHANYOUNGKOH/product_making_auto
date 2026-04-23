@@ -99,6 +99,108 @@ def _pick_product_name(names_json: str | None, fallback: str = "", index: int = 
     return fallback
 
 
+def _parse_json_dict(raw: str | None) -> dict:
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _slot_urls(slot_value) -> list[str]:
+    urls: list[str] = []
+    if isinstance(slot_value, dict):
+        url = str(slot_value.get("url") or "").strip()
+        if url:
+            urls.append(url)
+    elif isinstance(slot_value, list):
+        for item in slot_value:
+            urls.extend(_slot_urls(item))
+    elif isinstance(slot_value, str):
+        text = slot_value.strip()
+        if text:
+            urls.append(text)
+    return urls
+
+
+def _unique_urls(urls: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for url in urls:
+        if url and url not in seen:
+            seen.add(url)
+            ordered.append(url)
+    return ordered
+
+
+def resolve_export_image_slots(
+    image_slots: dict | str | None,
+    *,
+    index: int = 0,
+    fallback_nukki: str = "",
+    fallback_mix: str = "",
+    images_json: str | None = None,
+) -> dict[str, str]:
+    """Resolve image slots for export using generated -> nukki -> original priority."""
+    slots = image_slots if isinstance(image_slots, dict) else _parse_json_dict(image_slots)
+    try:
+        rolled_index = int(slots.get("rolled_index") or 0)
+    except (TypeError, ValueError):
+        rolled_index = 0
+
+    generated = _unique_urls(
+        _slot_urls(slots.get("generated_1x1"))
+        + _slot_urls(slots.get("generated"))
+        + _slot_urls(slots.get("codex"))
+        + _slot_urls(slots.get("codex_spark"))
+        + _slot_urls(slots.get("web"))
+    )
+    nukki = _unique_urls(_slot_urls(slots.get("nukki")) + ([fallback_nukki] if fallback_nukki else []))
+    original = _unique_urls(_slot_urls(slots.get("original")))
+
+    if not original and images_json:
+        try:
+            parsed = json.loads(images_json)
+        except (ValueError, TypeError):
+            parsed = []
+        if isinstance(parsed, list):
+            original = _unique_urls([
+                img if isinstance(img, str) else str((img or {}).get("url") or (img or {}).get("src") or "").strip()
+                for img in parsed
+            ])
+    if fallback_mix:
+        original = _unique_urls(original + [fallback_mix])
+
+    used: set[str] = set()
+    main = ""
+    secondary = ""
+    tertiary = ""
+
+    if generated:
+        main = generated[(rolled_index + max(index, 0)) % len(generated)]
+        used.add(main)
+    elif nukki:
+        main = nukki[0]
+        used.add(main)
+    elif original:
+        main = original[(rolled_index + max(index, 0)) % len(original)]
+        used.add(main)
+
+    for candidate in nukki + original + generated:
+        if candidate and candidate not in used:
+            if not secondary:
+                secondary = candidate
+                used.add(candidate)
+                continue
+            if not tertiary:
+                tertiary = candidate
+                break
+
+    return {"main": main, "secondary": secondary, "tertiary": tertiary}
+
+
 # 하위 호환 (기존 코드에서 호출하는 경우)
 def _first_image(images_json=None, fallback_mix="", fallback_nukki=""):
     return _pick_image(images_json, fallback_nukki, fallback_mix, index=0)
@@ -139,7 +241,7 @@ def fetch_export_products(db_path: Path) -> list[dict]:
         optional_keywords = [
             "product_names_json", "oc_options_json", "oc_images_json",
             "oc_content", "oc_search_keywords", "oc_shipping_fee",
-            "oc_shipping_type", "oc_origin",
+            "oc_shipping_type", "oc_origin", "image_slots",
         ]
         optional_found = [c for c in optional_keywords if c in existing_cols]
 
@@ -147,11 +249,14 @@ def fetch_export_products(db_path: Path) -> list[dict]:
         url_cols = sorted(c for c in existing_cols if c.endswith("url") and not c.startswith("oc"))
         # url_cols[0]=누끼url, url_cols[1]=연출url (있으면)
         nukki_col = url_cols[0] if len(url_cols) >= 1 else None
+        mix_col = url_cols[1] if len(url_cols) >= 2 else None
         # 믹스url은 없을 수 있음
 
         select_cols = required + optional_found
         if nukki_col:
             select_cols.append(nukki_col)
+        if mix_col and mix_col not in select_cols:
+            select_cols.append(mix_col)
 
         col_str = ", ".join(f'"{c}"' for c in select_cols)
         cursor.execute(
@@ -168,6 +273,8 @@ def fetch_export_products(db_path: Path) -> list[dict]:
             for k, v in r.items():
                 if k == nukki_col and nukki_col:
                     normalized["nukki_url"] = v
+                elif k == mix_col and mix_col:
+                    normalized["mix_url"] = v
                 elif k == cat_col and cat_col:
                     normalized["카테고리명"] = v
                 elif "상품코드" in k:
@@ -202,6 +309,20 @@ def build_oc_dataframe(rows: list[dict], export_counts: dict[str, int] | None = 
         code = r.get("상품코드", "")
         idx = export_counts.get(code, 0)  # 출고 카운터
 
+        resolved_images = resolve_export_image_slots(
+            r.get("image_slots"),
+            index=idx,
+            fallback_nukki=r.get("nukki_url", ""),
+            fallback_mix=r.get("mix_url", ""),
+            images_json=r.get("oc_images_json"),
+        )
+        main_image = resolved_images["main"] or _pick_image(
+            r.get("oc_images_json"),
+            fallback_nukki=r.get("nukki_url", ""),
+            fallback_mix=r.get("mix_url", ""),
+            index=idx,
+        )
+
         records.append({
             "상품코드":     code,
             "오너클랜판매가": r.get("oc_price") or 0,
@@ -221,6 +342,14 @@ def build_oc_dataframe(rows: list[dict], export_counts: dict[str, int] | None = 
             "배송유형":      r.get("oc_shipping_type", ""),
             "원산지":        r.get("oc_origin", ""),
         })
+        records[-1]["?대?吏?"] = main_image
+        records[-1]["?대?吏以?"] = resolved_images["secondary"]
+        records[-1]["?대?吏??"] = resolved_images["tertiary"]
+        records[-1]["\uC774\uBBF8\uC9C0\uB300"] = main_image
+        records[-1]["\uC774\uBBF8\uC9C0\uC911"] = resolved_images["secondary"]
+        records[-1]["\uC774\uBBF8\uC9C0\uC18C"] = resolved_images["tertiary"]
+        for stale_key in [key for key in tuple(records[-1].keys()) if key.startswith("?")]:
+            records[-1].pop(stale_key, None)
     return pd.DataFrame(records)
 
 
